@@ -16,6 +16,7 @@ await page.waitForTimeout(500)
 await page.locator('.assistant').screenshot({ path: `${out}/assistant.png` })
 
 await page.setViewportSize({ width: 390, height: 844 })
+await page.evaluate(() => window.scrollTo(0, 0))
 await page.waitForTimeout(800)
 await page.screenshot({ path: `${out}/mobile.png` })
 await browser.close()

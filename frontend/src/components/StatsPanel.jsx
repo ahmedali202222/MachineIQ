@@ -44,7 +44,9 @@ export default function StatsPanel() {
               <td>{m.name}</td>
               <td>
                 <div className="bar-cell">
-                  <div className="bar" style={{ width: `${m.availabilityPct}%` }} data-level={m.availabilityPct >= 90 ? 'good' : m.availabilityPct >= 75 ? 'ok' : 'bad'} />
+                  <div className="track">
+                    <div className="bar" style={{ width: `${m.availabilityPct}%` }} data-level={m.availabilityPct >= 90 ? 'good' : m.availabilityPct >= 75 ? 'ok' : 'bad'} />
+                  </div>
                   <span>{m.availabilityPct.toFixed(1)}%</span>
                 </div>
               </td>

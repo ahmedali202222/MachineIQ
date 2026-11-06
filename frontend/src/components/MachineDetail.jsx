@@ -36,9 +36,9 @@ function faultBands(data) {
   const bands = []
   let start = null
   data.forEach((d, i) => {
-    if (d.state === 'FAULTED' && start === null) start = d.ts
+    if (d.state === 'FAULTED' && start === null) start = d.t
     if ((d.state !== 'FAULTED' || i === data.length - 1) && start !== null) {
-      bands.push([start, d.ts])
+      bands.push([start, d.t])
       start = null
     }
   })
@@ -48,12 +48,23 @@ function faultBands(data) {
 export default function MachineDetail({ machine }) {
   const [minutes, setMinutes] = useState(15)
   const { data } = usePolling(() => api.readings(machine.id, minutes), minutes <= 15 ? 3000 : 15000, [machine.id, minutes])
-  const rows = data ?? []
+  const rows = (data ?? []).map((r) => ({ ...r, t: Date.parse(r.ts) }))
   const bands = faultBands(rows)
   const shaded = bands.map(([a, b]) => (
     <ReferenceArea key={a} x1={a} x2={b} fill="var(--red)" fillOpacity={0.12} ifOverflow="extendDomain" />
   ))
-  const xAxis = <XAxis dataKey="ts" tickFormatter={(v) => clock(v).slice(0, 5)} minTickGap={40} {...axis} />
+  const xAxis = (
+    <XAxis
+      dataKey="t"
+      type="number"
+      scale="time"
+      domain={['dataMin', 'dataMax']}
+      tickFormatter={(v) => clock(v).slice(0, 5)}
+      tickCount={6}
+      minTickGap={50}
+      {...axis}
+    />
+  )
 
   return (
     <section className="panel detail">

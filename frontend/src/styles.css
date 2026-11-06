@@ -140,7 +140,8 @@ select { background: var(--panel-2); border: 1px solid var(--border); border-rad
 .stats-table th { text-align: left; color: var(--muted); font-weight: 500; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; padding: 0 6px 6px 0; }
 .stats-table td { padding: 6px 6px 6px 0; border-top: 1px solid var(--border); font-variant-numeric: tabular-nums; }
 .bar-cell { position: relative; display: flex; align-items: center; gap: 8px; min-width: 110px; }
-.bar-cell .bar { height: 6px; border-radius: 3px; background: var(--green); max-width: 60px; flex-shrink: 0; }
+.bar-cell .track { width: 60px; height: 6px; border-radius: 3px; background: var(--grid); flex-shrink: 0; overflow: hidden; }
+.bar-cell .bar { height: 100%; border-radius: 3px; background: var(--green); }
 .bar-cell .bar[data-level='ok'] { background: var(--amber); }
 .bar-cell .bar[data-level='bad'] { background: var(--red); }
 
