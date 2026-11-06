@@ -1,0 +1,49 @@
+# Runs the whole MachineIQ stack:  docker compose up --build
+# Then open http://localhost:3000
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: machineiq
+      POSTGRES_USER: machineiq
+      POSTGRES_PASSWORD: machineiq
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U machineiq"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  simulator:
+    build: ./simulator
+    environment:
+      OPCUA_ENDPOINT: opc.tcp://0.0.0.0:4840/machineiq/
+    ports:
+      - "4840:4840"   # OPC UA - connect any OPC UA client (e.g. UaExpert) to browse the tags
+
+  backend:
+    build: ./backend
+    depends_on:
+      db:
+        condition: service_healthy
+      simulator:
+        condition: service_started
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/machineiq
+      OPCUA_ENDPOINT: opc.tcp://simulator:4840/machineiq/
+      SIMULATOR_CONTROL_URL: http://simulator:8090
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      DEMO_ENABLED: "true"
+    ports:
+      - "8080:8080"
+
+  frontend:
+    build: ./frontend
+    depends_on:
+      - backend
+    ports:
+      - "3000:80"
+
+volumes:
+  db-data:
