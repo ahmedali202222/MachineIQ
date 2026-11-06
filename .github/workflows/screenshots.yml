@@ -1,0 +1,39 @@
+name: Update screenshots
+
+# Run manually from the Actions tab to refresh the README screenshots.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  screenshots:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Start the full stack
+        run: docker compose up -d --build
+      - name: Wait for live data
+        run: ./scripts/e2e.sh
+      - name: Build up some history and trigger problems
+        run: |
+          sleep 60
+          curl -fsS -X POST localhost:3000/api/demo/inject/SRT-02/vibration
+          curl -fsS -X POST localhost:3000/api/demo/inject/LBL-03/overheat
+          sleep 45
+          curl -fsS -X POST localhost:3000/api/demo/inject/INS-01/jam
+          sleep 5
+      - name: Capture screenshots
+        run: |
+          mkdir -p docs/screenshots
+          npm install --no-save playwright@1
+          npx playwright install --with-deps chromium
+          OUT_DIR=docs/screenshots node scripts/screenshot.mjs
+      - name: Commit screenshots
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/screenshots
+          git commit -m "Update dashboard screenshots [skip ci]" || echo "No changes"
+          git push

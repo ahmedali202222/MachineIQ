@@ -75,23 +75,6 @@ jobs:
         run: docker compose up -d --build
       - name: Run end-to-end checks
         run: ./scripts/e2e.sh
-      - name: Let some history build up, then trigger a few problems for the screenshots
-        run: |
-          sleep 40
-          curl -fsS -X POST localhost:3000/api/demo/inject/SRT-02/vibration
-          curl -fsS -X POST localhost:3000/api/demo/inject/LBL-03/overheat
-          sleep 30
-      - name: Capture dashboard screenshots
-        run: |
-          mkdir -p screenshots
-          npm install --no-save playwright@1
-          npx playwright install --with-deps chromium
-          node scripts/screenshot.mjs
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: screenshots
-          path: screenshots/
       - name: Show logs on failure
         if: failure()
         run: docker compose logs --tail=200
