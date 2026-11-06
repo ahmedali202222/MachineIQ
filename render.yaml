@@ -1,0 +1,13 @@
+# Render Blueprint: deploys the all-in-one MachineIQ demo as a single web service.
+# In Render: New > Blueprint > pick this repository.
+services:
+  - type: web
+    name: machineiq-demo
+    runtime: docker
+    plan: free
+    dockerfilePath: ./deploy/Dockerfile
+    dockerContext: .
+    healthCheckPath: /actuator/health
+    envVars:
+      - key: ANTHROPIC_API_KEY
+        sync: false   # optional: set in the Render dashboard to turn on AI answers

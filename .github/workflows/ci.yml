@@ -78,3 +78,24 @@ jobs:
       - name: Show logs on failure
         if: failure()
         run: docker compose logs --tail=200
+
+  demo-image:
+    name: Demo image (Render free-tier limits)
+    runs-on: ubuntu-latest
+    needs: [simulator, backend, frontend]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build all-in-one demo image
+        run: docker build -f deploy/Dockerfile -t machineiq-demo .
+      - name: Run with 512 MB RAM and 0.1 CPU (same as Render's free instance)
+        run: docker run -d --name demo --memory 512m --cpus 0.1 -e PORT=10000 -p 10000:10000 machineiq-demo
+      - name: Run end-to-end checks
+        run: |
+          START=$(date +%s)
+          BASE_URL=http://localhost:10000 API_WAIT_SECONDS=480 ./scripts/e2e.sh
+          echo "Ready and verified after $(( $(date +%s) - START ))s"
+          curl -fsS http://localhost:10000/ | grep -q "<div id=\"root\">" && echo "ok  - dashboard served"
+          docker stats --no-stream demo
+      - name: Show logs on failure
+        if: failure()
+        run: docker logs --tail=200 demo

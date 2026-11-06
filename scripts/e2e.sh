@@ -21,7 +21,7 @@ history_ok()    { curl -fsS "$BASE/api/machines/SRT-02/readings?minutes=5" | jq 
 stats_ok()      { curl -fsS "$BASE/api/stats?hours=1" | jq -e '.machines | length == 3'; }
 fault_code_is() { curl -fsS "$BASE/api/alerts?open=true" | jq -e --arg m "$1" --arg c "$2" '.[] | select(.machineId==$m and .type=="FAULT" and .faultCode==$c)'; }
 
-wait_for "API is up" 120 curl -fsS "$BASE/api/machines"
+wait_for "API is up" "${API_WAIT_SECONDS:-120}" curl -fsS "$BASE/api/machines"
 wait_for "all 3 machines streaming live data over OPC UA" 90 all_live
 
 curl -fsS -X POST "$BASE/api/demo/inject/INS-01/jam" | jq -c .
