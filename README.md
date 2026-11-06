@@ -88,6 +88,15 @@ on a machine card to cause a fault.
 [Anthropic API key](https://console.anthropic.com/) and restart. Without a key the assistant runs in
 search mode at no cost.
 
+### Deploy a public demo (free)
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/ahmedali202222/MachineIQ)
+
+The button uses [`render.yaml`](render.yaml) to deploy [`deploy/Dockerfile`](deploy/Dockerfile), a
+single container with the simulator, PostgreSQL, backend and dashboard, sized for a free 512 MB
+instance (tested in CI with the same memory and CPU limits). Demo data resets when the service
+restarts, and free services sleep when idle and take about a minute to wake.
+
 ### Run the pieces individually (for development)
 
 ```bash
