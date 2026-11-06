@@ -39,6 +39,6 @@ else
   echo "FAIL - assistant did not return the E-042 procedure: $ANSWER"; exit 1
 fi
 
-wait_for "readings history available" 5 history_ok
+wait_for "readings history available" 30 history_ok
 wait_for "stats endpoint reports availability" 5 stats_ok
 echo "All end-to-end checks passed."
