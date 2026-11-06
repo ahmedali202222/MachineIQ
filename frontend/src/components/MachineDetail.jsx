@@ -49,6 +49,9 @@ export default function MachineDetail({ machine }) {
   const [minutes, setMinutes] = useState(15)
   const { data } = usePolling(() => api.readings(machine.id, minutes), minutes <= 15 ? 3000 : 15000, [machine.id, minutes])
   const rows = (data ?? []).map((r) => ({ ...r, t: Date.parse(r.ts) }))
+  // Show seconds when the visible data covers only a few minutes, so tick labels don't repeat.
+  const span = rows.length > 1 ? rows[rows.length - 1].t - rows[0].t : 0
+  const tickLabel = (v) => (span < 6 * 60 * 1000 ? clock(v) : clock(v).slice(0, 5))
   const bands = faultBands(rows)
   const shaded = bands.map(([a, b]) => (
     <ReferenceArea key={a} x1={a} x2={b} fill="var(--red)" fillOpacity={0.12} ifOverflow="extendDomain" />
@@ -59,7 +62,7 @@ export default function MachineDetail({ machine }) {
       type="number"
       scale="time"
       domain={['dataMin', 'dataMax']}
-      tickFormatter={(v) => clock(v).slice(0, 5)}
+      tickFormatter={tickLabel}
       tickCount={6}
       minTickGap={50}
       {...axis}
