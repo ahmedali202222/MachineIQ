@@ -61,6 +61,13 @@ def tag_values(m: Machine) -> dict:
     }
 
 
+def data_value(tag: str, value, vtype: ua.VariantType, sensor_ok: bool) -> ua.DataValue:
+    """Wraps a tag value; a failed temperature sensor reports Bad quality, like a real PLC would."""
+    if tag == "MotorTempC" and not sensor_ok:
+        return ua.DataValue(ua.Variant(value, vtype), StatusCode=ua.StatusCode(ua.StatusCodes.BadSensorFailure))
+    return ua.DataValue(ua.Variant(value, vtype))
+
+
 def make_control_handler(machines: dict[str, Machine], lock: threading.Lock):
     class Handler(BaseHTTPRequestHandler):
         def _send(self, code: int, body: dict):
@@ -141,13 +148,7 @@ async def main() -> None:
                     values = tag_values(m)
                     sensor_ok = m.s.sensor_ok
                 for tag, vtype in TAGS.items():
-                    if tag == "MotorTempC" and not sensor_ok:
-                        # A failed sensor reports Bad quality, like a real PLC would.
-                        dv = ua.DataValue(ua.Variant(values[tag], vtype),
-                                          StatusCode_=ua.StatusCode(ua.StatusCodes.BadSensorFailure))
-                    else:
-                        dv = ua.DataValue(ua.Variant(values[tag], vtype))
-                    await nodes[mid][tag].write_value(dv)
+                    await nodes[mid][tag].write_value(data_value(tag, values[tag], vtype, sensor_ok))
             await asyncio.sleep(TICK_SECONDS)
 
 
