@@ -1,0 +1,16 @@
+# Java
+backend/target/
+# Node
+frontend/node_modules/
+frontend/dist/
+# Python
+__pycache__/
+.pytest_cache/
+.venv/
+# Env / secrets
+.env
+*.env.local
+# OS / IDE
+.DS_Store
+.idea/
+.vscode/

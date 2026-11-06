@@ -1,0 +1,68 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: machineiq
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/machineiq}
+    username: ${DB_USER:machineiq}
+    password: ${DB_PASSWORD:machineiq}
+  jackson:
+    default-property-inclusion: non_null
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+machineiq:
+  retention-days: 3
+
+  opcua:
+    endpoint: ${OPCUA_ENDPOINT:opc.tcp://localhost:4840/machineiq/}
+    namespace-uri: urn:machineiq:simulator
+    poll-interval-ms: 1000
+    # Tag mapping: MachineIQ field -> tag name on the controller.
+    # To connect a real PLC, change these names (and node-prefix below) to match its tags.
+    tags:
+      state: State
+      motorTempC: MotorTempC
+      speedPpm: SpeedPPM
+      pieceCount: PieceCount
+      jamSensor: JamSensor
+      vibrationMmS: VibrationMmS
+      faultCode: FaultCode
+
+  machines:
+    - id: INS-01
+      name: Inserter 1
+      kind: Envelope inserter
+      node-prefix: INS-01
+    - id: SRT-02
+      name: Sorter 2
+      kind: Mail sorter
+      node-prefix: SRT-02
+    - id: LBL-03
+      name: Labeler 3
+      kind: Label applicator
+      node-prefix: LBL-03
+
+  rules:
+    warn-temp-c: 75
+    temp-hysteresis-c: 3
+    warn-vibration-mm-s: 7.1
+    vibration-hysteresis-mm-s: 0.5
+    stale-after-seconds: 10
+
+  assistant:
+    # Leave empty to run the assistant in search-only mode (no AI, no cost).
+    api-key: ${ANTHROPIC_API_KEY:}
+    model: ${ANTHROPIC_MODEL:claude-haiku-5-5}
+    top-k: 4
+    extra-manuals-dir: ${MANUALS_DIR:}
+
+  demo:
+    enabled: ${DEMO_ENABLED:true}
+    simulator-control-url: ${SIMULATOR_CONTROL_URL:http://localhost:8090}
