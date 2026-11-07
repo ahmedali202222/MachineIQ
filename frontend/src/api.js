@@ -15,7 +15,7 @@ async function request(path, options = {}) {
     }
     throw new Error(message)
   }
-  return res.json()
+  return res.status === 204 ? null : res.json()
 }
 
 export const api = {
@@ -28,6 +28,11 @@ export const api = {
   ask: (question, machineId) =>
     request('/assistant/ask', { method: 'POST', body: JSON.stringify({ question, machineId }) }),
   inject: (machineId, problem) => request(`/demo/inject/${machineId}/${problem}`, { method: 'POST' }),
+  faultLog: (days) => request(`/fault-log?days=${days}`),
+  faultLogSummary: (days) => request(`/fault-log/summary?days=${days}`),
+  faultLogSuggestions: () => request('/fault-log/suggestions'),
+  logFault: (entry) => request('/fault-log', { method: 'POST', body: JSON.stringify(entry) }),
+  deleteLoggedFault: (id) => request(`/fault-log/${id}`, { method: 'DELETE' }),
 }
 
 /**

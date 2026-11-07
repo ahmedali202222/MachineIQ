@@ -41,4 +41,13 @@ fi
 
 wait_for "readings history available" 30 history_ok
 wait_for "stats endpoint reports availability" 5 stats_ok
+NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+ID=$(curl -fsS -X POST "$BASE/api/fault-log" -H 'Content-Type: application/json' \
+  -d "{\"machineName\":\"E2E Inserter\",\"fault\":\"Jam\",\"occurredAt\":\"$NOW\",\"minutesDown\":7}" | jq -r .id)
+if curl -fsS "$BASE/api/fault-log/summary?days=1" | jq -e '.byMachine[] | select(.name=="E2E Inserter" and .minutesDown==7)' >/dev/null; then
+  echo "ok  - manual fault logged and counted in downtime"
+else
+  echo "FAIL - logged fault missing from summary"; exit 1
+fi
+curl -fsS -X DELETE "$BASE/api/fault-log/$ID" && echo "ok  - logged fault deleted"
 echo "All end-to-end checks passed."

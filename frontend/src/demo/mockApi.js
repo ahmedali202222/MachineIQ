@@ -220,6 +220,44 @@ function search(text, k = 4) {
     .slice(0, k)
 }
 
+// ---------- manual fault log (kept in this browser's localStorage) ----------
+const LOG_KEY = 'machineiq-fault-log'
+let faultLog = []
+try {
+  faultLog = JSON.parse(localStorage.getItem(LOG_KEY) ?? '[]')
+} catch {
+  faultLog = []
+}
+const saveLog = () => {
+  try {
+    localStorage.setItem(LOG_KEY, JSON.stringify(faultLog))
+  } catch {
+    // storage unavailable: the log lasts until the page is closed
+  }
+}
+const inWindow = (days) => faultLog.filter((f) => Date.parse(f.occurredAt) >= Date.now() - days * 86400000)
+function totals(list, key) {
+  const m = new Map()
+  for (const f of list) {
+    const t = m.get(f[key]) ?? { name: f[key], count: 0, minutesDown: 0 }
+    t.count += 1
+    t.minutesDown += f.minutesDown
+    m.set(f[key], t)
+  }
+  return [...m.values()]
+}
+function logSummary(days) {
+  const list = inWindow(days)
+  return {
+    days,
+    count: list.length,
+    minutesDown: list.reduce((a, f) => a + f.minutesDown, 0),
+    byMachine: totals(list, 'machineName').sort((a, b) => b.minutesDown - a.minutesDown || b.count - a.count),
+    byFault: totals(list, 'fault').sort((a, b) => b.count - a.count || b.minutesDown - a.minutesDown).slice(0, 8),
+  }
+}
+const recentNames = (key) => [...new Set([...faultLog].sort((a, b) => Date.parse(b.occurredAt) - Date.parse(a.occurredAt)).map((f) => f[key]))].slice(0, 50)
+
 // ---------- API ----------
 const status = (m) => {
   const latest = readings[m.id].at(-1)
@@ -311,6 +349,37 @@ async function handle(path, init) {
     if (!body.question?.trim()) return json({ detail: 'Question is required' }, 400)
     await new Promise((r) => setTimeout(r, 500))
     return json(ask(body))
+  }
+  if (p === '/fault-log' && init?.method === 'POST') {
+    const b = JSON.parse(init.body)
+    const minutesDown = Number(b.minutesDown)
+    if (!b.machineName?.trim() || !b.fault?.trim() || !(minutesDown >= 0 && minutesDown <= 1440) || Date.parse(b.occurredAt) > Date.now() + 60000) {
+      return json({ detail: '400 invalid fault' }, 400)
+    }
+    const entry = {
+      id: Date.now(),
+      machineName: b.machineName.trim(),
+      fault: b.fault.trim(),
+      description: b.description?.trim() || undefined,
+      occurredAt: b.occurredAt,
+      minutesDown,
+      fix: b.fix?.trim() || undefined,
+    }
+    faultLog.push(entry)
+    saveLog()
+    return json(entry, 201)
+  }
+  if (p === '/fault-log') {
+    const days = Number(q.get('days') ?? 30)
+    return json(inWindow(days).sort((a, b) => Date.parse(b.occurredAt) - Date.parse(a.occurredAt)))
+  }
+  if (p === '/fault-log/summary') return json(logSummary(Number(q.get('days') ?? 30)))
+  if (p === '/fault-log/suggestions') return json({ machines: recentNames('machineName'), faults: recentNames('fault') })
+  if ((mm = p.match(/^\/fault-log\/(\d+)$/)) && init?.method === 'DELETE') {
+    const before = faultLog.length
+    faultLog = faultLog.filter((f) => f.id !== Number(mm[1]))
+    saveLog()
+    return before === faultLog.length ? json({ detail: 'Not found' }, 404) : new Response(null, { status: 204 })
   }
   if ((mm = p.match(/^\/demo\/inject\/([^/]+)\/([^/]+)$/))) {
     const m = machines.find((x) => x.id === mm[1])

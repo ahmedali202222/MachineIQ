@@ -80,6 +80,43 @@ class ApiIntegrationTest {
     }
 
     @Test
+    void loggedFaultsAreStoredSummarizedAndDeletable() throws Exception {
+        String body = """
+                {"machineName":"Test Inserter 9","fault":"Jam at station 3","description":"Envelopes stuck",
+                 "occurredAt":"%s","minutesDown":12,"fix":"Cleaned sensor"}
+                """.formatted(Instant.now().minusSeconds(60));
+        String created = mvc.perform(post("/api/fault-log").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").isNumber())
+                .andExpect(jsonPath("$.machineName").value("Test Inserter 9"))
+                .andReturn().getResponse().getContentAsString();
+        long id = Long.parseLong(created.replaceAll(".*\"id\":(\\d+).*", "$1"));
+
+        mvc.perform(get("/api/fault-log/summary").param("days", "7"))
+                .andExpect(jsonPath("$.byMachine[?(@.name == 'Test Inserter 9')].minutesDown", hasItem(12)));
+        mvc.perform(get("/api/fault-log/suggestions"))
+                .andExpect(jsonPath("$.machines", hasItem("Test Inserter 9")));
+
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete("/api/fault-log/" + id))
+                .andExpect(status().isNoContent());
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete("/api/fault-log/" + id))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void loggedFaultValidation() throws Exception {
+        mvc.perform(post("/api/fault-log").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"machineName\":\"\",\"fault\":\"Jam\",\"occurredAt\":\"2026-01-01T00:00:00Z\",\"minutesDown\":5}"))
+                .andExpect(status().isBadRequest());
+        mvc.perform(post("/api/fault-log").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"machineName\":\"X\",\"fault\":\"Jam\",\"occurredAt\":\"2099-01-01T00:00:00Z\",\"minutesDown\":5}"))
+                .andExpect(status().isBadRequest());
+        mvc.perform(post("/api/fault-log").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"machineName\":\"X\",\"fault\":\"Jam\",\"occurredAt\":\"2026-01-01T00:00:00Z\",\"minutesDown\":-1}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void rejectsEmptyQuestionAndUnknownMachine() throws Exception {
         mvc.perform(post("/api/assistant/ask").contentType(MediaType.APPLICATION_JSON).content("{\"question\":\"\"}"))
                 .andExpect(status().isBadRequest());

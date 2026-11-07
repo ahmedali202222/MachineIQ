@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react'
 import { api, usePolling } from './api'
 import AlertsPanel from './components/AlertsPanel'
 import Assistant from './components/Assistant'
+import FaultLogPanel from './components/FaultLogPanel'
+import LogFaultDialog from './components/LogFaultDialog'
 import MachineCard from './components/MachineCard'
 import MachineDetail from './components/MachineDetail'
 import StatsPanel from './components/StatsPanel'
@@ -11,6 +13,9 @@ export default function App() {
   const machinesQ = usePolling(api.machines, 2000)
   const alertsQ = usePolling(api.alerts, 3000)
   const [selectedId, setSelectedId] = useState(null)
+  const [logOpen, setLogOpen] = useState(false)
+  const [logVersion, setLogVersion] = useState(0)
+  const [toast, setToast] = useState(null)
 
   const machines = useMemo(() => machinesQ.data ?? [], [machinesQ.data])
   const machinesById = useMemo(() => Object.fromEntries(machines.map((m) => [m.id, m])), [machines])
@@ -45,8 +50,13 @@ export default function App() {
             Browser demo · machines simulated in your browser · view the code
           </a>
         )}
-        <div className={`live ${connected ? '' : 'live-off'}`}>
-          <span className="dot" /> {connected ? 'Live' : 'Connecting to server…'}
+        <div className="topbar-right">
+          <div className={`live ${connected ? '' : 'live-off'}`}>
+            <span className="dot" /> {connected ? 'Live' : 'Connecting to server…'}
+          </div>
+          <button className="btn-primary btn-log" onClick={() => setLogOpen(true)}>
+            + Log fault
+          </button>
         </div>
       </header>
 
@@ -101,9 +111,25 @@ export default function App() {
           <div className="col-side">
             <AlertsPanel alerts={alertsQ.data} machinesById={machinesById} onChange={alertsQ.refresh} />
             <StatsPanel />
+            <FaultLogPanel refreshKey={logVersion} onLogFault={() => setLogOpen(true)} />
           </div>
         </div>
       </main>
+
+      <LogFaultDialog
+        open={logOpen}
+        onClose={() => setLogOpen(false)}
+        onSaved={(f) => {
+          setLogVersion((v) => v + 1)
+          setToast(`Logged: ${f.machineName} · ${f.fault}`)
+          setTimeout(() => setToast(null), 3500)
+        }}
+      />
+      {toast && (
+        <div className="toast" role="status">
+          {toast}
+        </div>
+      )}
 
       <footer className="footer muted small">
         MachineIQ · Simulated equipment over OPC UA · Spring Boot · PostgreSQL · React
