@@ -40,6 +40,11 @@ export default function App() {
             <p className="muted small">Demo Plant · Line A</p>
           </div>
         </div>
+        {config.data?.browserDemo && (
+          <a className="demo-tag" href="https://github.com/ahmedali202222/MachineIQ" target="_blank" rel="noreferrer">
+            Browser demo · machines simulated in your browser · view the code
+          </a>
+        )}
         <div className={`live ${connected ? '' : 'live-off'}`}>
           <span className="dot" /> {connected ? 'Live' : 'Connecting to server…'}
         </div>
