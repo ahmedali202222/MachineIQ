@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { api } from '../api'
-import { num, STATUS_LABEL } from '../format'
+import { num } from '../format'
+import { machineHealth, tempHint, vibrationHint } from '../health'
 
 const PROBLEMS = [
   ['jam', 'Product jam'],
@@ -9,20 +10,35 @@ const PROBLEMS = [
   ['dropout', 'Sensor dropout'],
 ]
 
+function Metric({ label, value, hint }) {
+  return (
+    <div>
+      <dt>{label}</dt>
+      <dd>
+        {value}
+        {hint?.text && <span className={`hint hint-${hint.level}`}>{hint.text}</span>}
+      </dd>
+    </div>
+  )
+}
+
 export default function MachineCard({ machine, selected, onSelect, demoEnabled, onInjected }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [error, setError] = useState(null)
   const r = machine.latest
+  const health = machineHealth(machine)
   const tempOk = r?.tempQualityGood !== false
 
   const inject = async (problem) => {
     setBusy(true)
     setMenuOpen(false)
+    setError(null)
     try {
       await api.inject(machine.id, problem)
       onInjected?.()
     } catch (e) {
-      alert(`Could not trigger problem: ${e.message}`)
+      setError(`Couldn't trigger that: ${e.message}`)
     } finally {
       setBusy(false)
     }
@@ -30,7 +46,7 @@ export default function MachineCard({ machine, selected, onSelect, demoEnabled, 
 
   return (
     <article
-      className={`machine-card status-${machine.status.toLowerCase()} ${selected ? 'selected' : ''}`}
+      className={`machine-card level-${health.level} ${selected ? 'selected' : ''}`}
       onClick={() => onSelect(machine.id)}
       aria-pressed={selected}
       role="button"
@@ -40,48 +56,31 @@ export default function MachineCard({ machine, selected, onSelect, demoEnabled, 
       <header className="machine-card-head">
         <div>
           <h3>{machine.name}</h3>
-          <p className="muted">
-            {machine.kind} · {machine.id}
-          </p>
+          <p className="muted">{machine.kind}</p>
         </div>
-        <span className={`pill pill-${machine.status.toLowerCase()}`}>
-          <span className="dot" /> {STATUS_LABEL[machine.status] ?? machine.status}
-        </span>
+        {machine.openAlerts > 0 && <span className="alert-count">{machine.openAlerts} alert{machine.openAlerts > 1 ? 's' : ''}</span>}
       </header>
 
-      {machine.status === 'FAULTED' && (
-        <div className="fault-banner">
-          <strong>{r?.faultCode}</strong> {machine.faultDescription}
-        </div>
-      )}
+      <p className={`health health-${health.level}`}>
+        <span className="dot" />
+        {health.text}
+      </p>
+
+      {machine.status === 'FAULTED' && r?.faultCode && <p className="muted small fault-code">Fault code {r.faultCode} · see Ask for the fix</p>}
 
       <dl className="metrics">
-        <div>
-          <dt>Motor temp</dt>
-          <dd className={!tempOk ? 'bad' : r?.motorTempC >= 75 ? 'warn' : ''}>
-            {tempOk ? `${num(r?.motorTempC)} °C` : 'Sensor fault'}
-          </dd>
-        </div>
-        <div>
-          <dt>Speed</dt>
-          <dd>{num(r?.speedPpm, 0)} /min</dd>
-        </div>
-        <div>
-          <dt>Vibration</dt>
-          <dd className={r?.vibrationMmS >= 7.1 ? 'warn' : ''}>{num(r?.vibrationMmS)} mm/s</dd>
-        </div>
-        <div>
-          <dt>Pieces</dt>
-          <dd>{r?.pieceCount?.toLocaleString() ?? '—'}</dd>
-        </div>
+        <Metric label="Motor temp" value={tempOk ? `${num(r?.motorTempC, 0)}°C` : '—'} hint={tempHint(r)} />
+        <Metric label="Vibration" value={`${num(r?.vibrationMmS)} mm/s`} hint={vibrationHint(r)} />
+        <Metric label="Speed" value={`${num(r?.speedPpm, 0)} / min`} />
+        <Metric label="Made so far" value={r?.pieceCount?.toLocaleString() ?? '—'} />
       </dl>
 
-      <footer className="machine-card-foot">
-        <span className={machine.openAlerts ? 'alert-count' : 'muted'}>
-          {machine.openAlerts ? `${machine.openAlerts} open alert${machine.openAlerts > 1 ? 's' : ''}` : 'No open alerts'}
-        </span>
-        {demoEnabled && (
-          <div className="demo-menu" onClick={(e) => e.stopPropagation()}>
+      {error && <p className="form-error">{error}</p>}
+
+      {demoEnabled && (
+        <footer className="machine-card-foot" onClick={(e) => e.stopPropagation()}>
+          <span className="muted small">Tap card for charts</span>
+          <div className="demo-menu">
             <button className="btn-ghost" onClick={() => setMenuOpen((o) => !o)} disabled={busy} aria-expanded={menuOpen}>
               {busy ? 'Sending…' : 'Simulate problem ▾'}
             </button>
@@ -97,8 +96,8 @@ export default function MachineCard({ machine, selected, onSelect, demoEnabled, 
               </ul>
             )}
           </div>
-        )}
-      </footer>
+        </footer>
+      )}
     </article>
   )
 }

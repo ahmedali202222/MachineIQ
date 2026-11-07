@@ -1,10 +1,14 @@
+import { useState } from 'react'
 import { api } from '../api'
-import { ALERT_LABEL, duration, timeAgo } from '../format'
+import { duration, timeAgo } from '../format'
+import { alertDetail, alertTitle } from '../health'
 
 export default function AlertsPanel({ alerts, machinesById, onChange }) {
+  const [showHistory, setShowHistory] = useState(false)
   const list = alerts ?? []
   const open = list.filter((a) => !a.closedAt)
-  const closed = list.filter((a) => a.closedAt).slice(0, 12)
+  const closed = list.filter((a) => a.closedAt)
+  const shownClosed = showHistory ? closed.slice(0, 20) : closed.slice(0, 3)
 
   const ack = async (id) => {
     await api.ack(id)
@@ -14,23 +18,18 @@ export default function AlertsPanel({ alerts, machinesById, onChange }) {
   const row = (a) => (
     <li key={a.id} className={`alert sev-${a.severity.toLowerCase()} ${a.closedAt ? 'closed' : ''}`}>
       <div className="alert-main">
-        <div className="alert-title">
-          <span className="sev">{a.severity === 'CRITICAL' ? 'Critical' : 'Warning'}</span>
-          <strong>{ALERT_LABEL[a.type] ?? a.type}</strong>
-          <span className="muted">· {machinesById[a.machineId]?.name ?? a.machineId}</span>
-        </div>
-        <p>{a.message}</p>
+        <strong className="alert-title">{alertTitle(a, machinesById[a.machineId]?.name)}</strong>
+        <p>{alertDetail(a)}</p>
         <p className="muted small">
-          {a.closedAt ? `Resolved after ${duration(a.openedAt, a.closedAt)} · ` : `Open for ${duration(a.openedAt)} · `}
-          {timeAgo(a.openedAt)}
+          {a.closedAt ? `Fixed after ${duration(a.openedAt, a.closedAt)} · ${timeAgo(a.closedAt)}` : `Started ${timeAgo(a.openedAt)}`}
         </p>
       </div>
       {!a.closedAt &&
         (a.acknowledgedAt ? (
-          <span className="acked">Acknowledged</span>
+          <span className="acked">Seen ✓</span>
         ) : (
           <button className="btn-small" onClick={() => ack(a.id)}>
-            Acknowledge
+            Mark as seen
           </button>
         ))}
     </li>
@@ -39,15 +38,23 @@ export default function AlertsPanel({ alerts, machinesById, onChange }) {
   return (
     <section className="panel alerts">
       <header className="panel-head">
-        <h2>Alerts</h2>
-        <span className={`badge ${open.length ? 'badge-red' : ''}`}>{open.length} open</span>
+        <div>
+          <h2>Alerts</h2>
+          <p className="muted">Problems happening right now</p>
+        </div>
+        <span className={`badge ${open.length ? 'badge-red' : 'badge-green'}`}>{open.length ? `${open.length} active` : 'All clear'}</span>
       </header>
-      {open.length === 0 && <p className="empty small">All clear. No open alerts.</p>}
-      <ul className="alert-list">{open.map(row)}</ul>
+      {open.length === 0 ? <p className="empty small">Nothing needs attention right now.</p> : <ul className="alert-list">{open.map(row)}</ul>}
+
       {closed.length > 0 && (
         <>
-          <h3 className="subhead">Recently resolved</h3>
-          <ul className="alert-list">{closed.map(row)}</ul>
+          <h3 className="subhead">Recently fixed</h3>
+          <ul className="alert-list">{shownClosed.map(row)}</ul>
+          {closed.length > 3 && (
+            <button className="link-btn" onClick={() => setShowHistory((s) => !s)}>
+              {showHistory ? 'Show less' : `Show more (${Math.min(closed.length, 20) - 3})`}
+            </button>
+          )}
         </>
       )}
     </section>

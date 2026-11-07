@@ -73,8 +73,8 @@ export default function MachineDetail({ machine }) {
     <section className="panel detail">
       <header className="panel-head">
         <div>
-          <h2>{machine.name} trends</h2>
-          <p className="muted">Red bands show when the machine was stopped by a fault</p>
+          <h2>{machine.name}: last readings</h2>
+          <p className="muted">Shaded red = machine was stopped</p>
         </div>
         <div className="segmented" role="tablist" aria-label="Time range">
           {RANGES.map(([m, label]) => (

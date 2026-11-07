@@ -57,7 +57,7 @@ export default function Assistant({ machines, selectedId, aiEnabled }) {
         <div>
           <h2>Troubleshooting assistant</h2>
           <p className="muted">
-            {aiEnabled ? 'AI answers grounded in the equipment manuals and live machine data' : 'Search mode: shows matching manual sections (add an API key for AI answers)'}
+            {aiEnabled ? 'Ask how to fix a problem. Answers use the machine manuals and live readings.' : 'Ask how to fix a problem. Shows the matching steps from the machine manuals.'}
           </p>
         </div>
         <select value={machineId} onChange={(e) => setMachineId(e.target.value)} aria-label="Machine context">
