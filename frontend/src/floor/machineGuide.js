@@ -52,6 +52,13 @@ export const MACHINE_INFO = {
   },
 }
 
+/** The problems an operator can pick for each machine, in the order they show up. */
+export const PROBLEMS = {
+  FlowMaster: ['Front table jam', 'Accumulator jam', 'Doubles', 'Envelope jam', 'Failed to feed'],
+  Inserter: ['Front table jam', 'Accumulator jam', 'Doubles', 'Envelope jam', 'Failed to feed', 'Camera read fail'],
+  Inkjet: ['Camera read fail', 'Bad print / smear', 'Nozzle clog', 'Low ink'],
+}
+
 /**
  * For each jam: where on the machine it happens, why it usually happens, and what to check.
  * `why` and `check` are in the order an operator would usually work through them.

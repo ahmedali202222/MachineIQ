@@ -1,7 +1,6 @@
 import { useState } from 'react'
-import { FLOOR_CONFIG } from './floorSim'
-import { BREAKDOWN_GUIDE, JAM_GUIDE } from './machineGuide'
-import './floor.css'
+import { BREAKDOWN_GUIDE, JAM_GUIDE, PROBLEMS } from './machineGuide'
+import './helper.css'
 
 // Jam helper: the simplest possible tool for an operator at the machine.
 // 1) pick the machine  2) pick the problem  3) see what to do. Optional: tap "Fixed" to count it.
@@ -22,7 +21,7 @@ function save(data) {
 }
 const today = () => new Date().toDateString()
 
-export default function HelperView({ switcher }) {
+export default function HelperView() {
   const [machine, setMachine] = useState(null)
   const [problem, setProblem] = useState(null)
   const [data, setData] = useState(load)
@@ -32,7 +31,7 @@ export default function HelperView({ switcher }) {
   const todays = data.log.filter((e) => e.day === today())
   const counts = Object.entries(todays.reduce((a, e) => { a[e.problem] = (a[e.problem] || 0) + 1; return a }, {}))
     .sort((a, b) => b[1] - a[1])
-  const problems = machine ? [...FLOOR_CONFIG.faults[machine].map((f) => f.name), 'Something broke'] : []
+  const problems = machine ? [...PROBLEMS[machine], 'Something broke'] : []
   const noteKey = `${machine}|${problem}`
   const guide = problem && problem !== 'Something broke' ? JAM_GUIDE[problem] : null
 
@@ -53,11 +52,10 @@ export default function HelperView({ switcher }) {
             <path d="M6 21l5-9 5 6 4-7 6 10" fill="none" stroke="var(--accent)" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
           <div>
-            <h1>Jam helper</h1>
+            <h1>MachineIQ · Jam helper</h1>
             <p className="muted small">Pick the machine, pick the problem, fix it</p>
           </div>
         </div>
-        {switcher}
       </header>
 
       <main className="helper-main">

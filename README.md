@@ -7,7 +7,7 @@ assistant that answers from the equipment manuals.
 
 [![CI](https://github.com/ahmedali202222/MachineIQ/actions/workflows/ci.yml/badge.svg)](https://github.com/ahmedali202222/MachineIQ/actions/workflows/ci.yml)
 
-![MachineIQ mail floor](docs/screenshots/floor.png)
+![MachineIQ jam helper](docs/screenshots/jam-helper.png)
 
 ## Why I built it
 
@@ -35,34 +35,23 @@ before they become a stopped line.
 - **Demo controls**: trigger a jam, overheating motor, worn bearing or sensor dropout from the
   dashboard and watch MachineIQ react.
 
-## Mail floor view
+## Jam helper
 
-The dashboard opens on a model of a real mail production floor: **9 FlowMasters and two
-inkjet → inserter lines** (the inkjet prints the envelopes its inserter fills), run over
-**2 shifts by 9 operators**. It is calibrated to the floor I work on: about 500-1,000 pieces per
-machine-hour and ~600,000 pieces a week.
+A phone-first helper for operators on a mail floor running **FlowMaster** inserters, a
+**Pitney Bowes inserter** and an **inkjet** that prints its envelopes. Three taps:
 
-- **Live floor**: every machine's status (running, jam, waiting for an operator, changeover,
-  breakdown, held by its line partner), current job setup (6x9 or #10 envelopes, 11" or 14"
-  pages), paper/envelope stock, and time since its last adjustment.
-- **The jams operators actually fight**: front table, accumulator, doubles, envelope jams,
-  failed to feed, and Keyence camera read fails on the inkjets and inserters, plus rare major
-  breakdowns (gears, belts, bearings, electrical, air) that go to maintenance.
-- **Shift reports and OEE** per machine, type and shift, jams ranked by minutes lost, jams per
-  running hour by setup, stock quality and time since adjustment.
-- **Findings**: plain-language actions drawn from the data, e.g. *"Bad stock jams 2.4x more than
-  good stock"* or *"Jams rise after an hour without adjustment: re-adjust hourly."*
+1. **Which machine?** FlowMaster, Inserter or Inkjet
+2. **What's wrong?** Front table jam, accumulator jam, doubles, envelope jam, failed to feed,
+   Keyence camera read fail, bad print, nozzle clog, low ink, or "something broke"
+3. **What to do:** where it happens, numbered checks, and why it usually happens
 
-The model lives in [`frontend/src/floor/floorSim.js`](frontend/src/floor/floorSim.js) (no
-dependencies; every rate is in `FLOOR_CONFIG`). Print a week's report from the command line:
+Operators can add their own floor's notes to any fix, and tap **Fixed it** to keep a count for
+the day (both saved on the phone). The guide lives in
+[`frontend/src/floor/machineGuide.js`](frontend/src/floor/machineGuide.js): FlowMaster specs from
+BlueCrest's public pages, jam steps written as a general guide (not copied from any manual).
 
-```bash
-node scripts/floor-report.mjs --days 5
-```
-
-![Line A sensor view](docs/screenshots/dashboard.png)
-
-The original OPC UA sensor view of Line A is one click away (**Line A sensors**, or `#line`).
+> The OPC UA backend, Python simulator and assistant below are the earlier sensor-monitoring
+> prototype. The dashboard no longer uses them.
 
 ## Architecture
 
