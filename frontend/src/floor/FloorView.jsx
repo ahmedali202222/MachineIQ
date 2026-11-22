@@ -3,22 +3,23 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxi
 import { FloorSim, fmtDate, fmtTime } from './floorSim'
 import './floor.css'
 
+// Plain words for each machine state.
 const STATUS = {
   RUNNING: { text: 'Running', level: 'ok' },
-  JAM: { text: 'Jam', level: 'stop' },
-  WAITING: { text: 'Waiting', level: 'warn' },
-  CHANGEOVER: { text: 'Changeover', level: 'info' },
-  BREAKDOWN: { text: 'Breakdown', level: 'stop' },
-  STARVED: { text: 'Held', level: 'held' },
+  JAM: { text: 'Jammed', level: 'stop' },
+  WAITING: { text: 'Needs operator', level: 'warn' },
+  CHANGEOVER: { text: 'Changing job', level: 'info' },
+  BREAKDOWN: { text: 'Broken down', level: 'stop' },
+  STARVED: { text: 'Paused', level: 'held' },
   OFF: { text: 'Off', level: 'off' },
 }
-const SPEEDS = [['Pause', 0], ['Real time', 1 / 60], ['60×', 1], ['600×', 10]]
+const SPEEDS = [['Pause', 0], ['Normal', 1 / 60], ['Fast', 1], ['Very fast', 10]]
 const RANGES = [['shift', 'This shift'], ['today', 'Today'], ['week', '5 days']]
 const TABS = [
   ['floor', 'Floor', 'M3 4h7v7H3zM14 4h7v7h-7zM3 15h7v5H3zM14 15h7v5h-7z'],
-  ['findings', 'Findings', 'M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.8.8 1 1.5 1 2.5h6c0-1 .2-1.7 1-2.5A6 6 0 0 0 12 3z'],
+  ['fixes', 'To fix', 'M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.8.8 1 1.5 1 2.5h6c0-1 .2-1.7 1-2.5A6 6 0 0 0 12 3z'],
+  ['history', 'History', 'M5 4h14v16H5zM8 8h8M8 12h8M8 16h5'],
   ['report', 'Report', 'M4 20V10M10 20V4M16 20v-7M22 20H2'],
-  ['events', 'Events', 'M5 4h14v16H5zM8 8h8M8 12h8M8 16h5'],
 ]
 const axis = { stroke: 'var(--muted)', fontSize: 11, tickLine: false }
 const tip = { contentStyle: { background: 'var(--panel-2)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }, cursor: { fill: 'var(--grid)' } }
@@ -43,10 +44,22 @@ function nextShiftStart(sim) {
   return next !== undefined ? dayStart + next : dayStart + 1440 + sim.cfg.shifts[0].start * 60
 }
 
+/** One short line saying what a machine is doing, e.g. "Front table jam · 4 min". */
+function whatsHappening(m) {
+  const reason = m.label.split(' · ')[0]
+  const made = `${(m.shift?.pieces ?? 0).toLocaleString()} made this shift`
+  if (m.status === 'RUNNING') return m.minsSinceAdjust >= 60 ? `${made} · due for adjustment` : made
+  if (m.status === 'STARVED') return `${reason} (same line)`
+  if (m.status === 'WAITING') return `${reason} · waiting ${m.minutes} min`
+  if (m.status === 'CHANGEOVER') return `Setting up ${m.job.setup}`
+  if (m.status === 'BREAKDOWN') return `${reason.split(': ')[1] || reason} · maintenance`
+  if (m.status === 'OFF') return 'Between shifts'
+  return `${reason} · ${m.minutes} min`
+}
+
 export default function FloorView({ switcher }) {
   // The sim is a mutable engine that advances in the timer below; `version` re-renders after each step.
   const [sim] = useState(createSim)
-
   const [version, setVersion] = useState(0)
   const [speed, setSpeed] = useState(1)
   const [range, setRange] = useState('today')
@@ -76,29 +89,32 @@ export default function FloorView({ switcher }) {
   const report = useMemo(() => sim.report(range), [version, range, sim])
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const shiftReport = useMemo(() => sim.report('shift'), [version, sim])
+  const weekTick = Math.floor(version / 30) // the 5-day findings only need refreshing now and then
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const weekReport = useMemo(() => sim.report('week'), [weekTick, sim])
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const hourly = useMemo(() => sim.hourlyFor(fmtDate(sim.now)), [version, sim])
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const feed = useMemo(() => sim.recentEvents(25), [version, sim])
+  const feed = useMemo(() => sim.recentEvents(10), [version, sim])
 
   const byId = Object.fromEntries(snap.map((m) => [m.id, m]))
-  const selected = byId[selectedId] ?? snap.find((m) => m.status !== 'RUNNING' && m.status !== 'OFF') ?? snap[0]
+  const selected = selectedId ? byId[selectedId] : null
   const shift = sim.currentShift()
   const running = snap.filter((m) => m.status === 'RUNNING').length
-  const stopped = snap.filter((m) => ['JAM', 'WAITING', 'BREAKDOWN'].includes(m.status))
-  const level = !shift ? 'off' : snap.some((m) => m.status === 'BREAKDOWN') || stopped.length >= 4 ? 'stop' : stopped.length ? 'warn' : 'ok'
-  const summaryText = !shift ? 'Floor is between shifts'
-    : stopped.length === 0 ? `All ${running} running machines are making mail`
-      : `${running} of ${snap.length} running · ${stopped.slice(0, 2).map((m) => `${m.id} ${m.label.split(' · ')[0].toLowerCase()}`).join(', ')}${stopped.length > 2 ? ` +${stopped.length - 2} more` : ''}`
+  const attention = snap.filter((m) => ['JAM', 'WAITING', 'BREAKDOWN', 'CHANGEOVER'].includes(m.status))
+  const problems = attention.filter((m) => m.status !== 'CHANGEOVER')
+  const level = !shift ? 'off' : snap.some((m) => m.status === 'BREAKDOWN') || problems.length >= 4 ? 'stop' : problems.length ? 'warn' : 'ok'
+  const headline = !shift ? 'The floor is between shifts.'
+    : problems.length === 0 ? `All good: ${running} of ${snap.length} machines are running.`
+      : `${running} of ${snap.length} machines running · ${problems.length} ${problems.length === 1 ? 'needs' : 'need'} attention`
 
   const select = (id) => {
-    setSelectedId(id)
-    if (window.matchMedia('(max-width: 720px)').matches) {
-      setTimeout(() => document.getElementById('fdetail')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)
-    }
+    setSelectedId((cur) => (cur === id ? null : id))
+    setTimeout(() => document.getElementById('fdetail')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50)
   }
   const flowmasters = snap.filter((m) => m.type === 'FlowMaster')
   const lines = sim.cfg.lines.map((ids) => ids.map((id) => byId[id]))
+  const tile = (m) => <Tile key={m.id} m={m} selected={selectedId === m.id} onSelect={select} />
 
   return (
     <div className="app floor" data-ftab={tab}>
@@ -110,120 +126,139 @@ export default function FloorView({ switcher }) {
           </svg>
           <div>
             <h1>MachineIQ</h1>
-            <p className="muted small">Mail floor · 13 machines · 2 shifts</p>
+            <p className="muted small">Mail production floor</p>
           </div>
         </div>
         {switcher}
-        <div className="topbar-right">
-          <div className="sim-clock">
-            <strong>{sim.now.toLocaleDateString([], { weekday: 'short' })} {fmtTime(sim.now)}</strong>
-            <span className="muted small">{shift ? shift.name : 'off shift'}</span>
-          </div>
-          <div className="segmented" role="group" aria-label="Simulation speed">
-            {SPEEDS.map(([label, v]) => (
-              <button key={label} className={speed === v ? 'active' : ''} onClick={() => setSpeed(v)}>{label}</button>
-            ))}
-          </div>
+        <div className="sim-clock">
+          <strong>{sim.now.toLocaleDateString([], { weekday: 'short' })} {fmtTime(sim.now)}</strong>
+          <span className="muted small">{shift ? shift.name : 'off shift'}</span>
         </div>
       </header>
 
       <main>
-        <section className={`summary summary-${level}`} aria-live="polite">
-          <span className="dot" />
-          <p>{summaryText}</p>
+        <section className="fintro">
+          <p>
+            A <strong>simulated mail floor</strong>: 9 FlowMasters and 2 inserter lines, run by operators over 2 shifts.
+            Machines run, jam and get fixed like a real shift. <strong>Tap any machine</strong> to see what's going on.
+          </p>
+          <div className="fspeed">
+            <span className="muted small">Speed</span>
+            <div className="segmented" role="group" aria-label="Simulation speed">
+              {SPEEDS.map(([label, v]) => (
+                <button key={label} className={speed === v ? 'active' : ''} onClick={() => setSpeed(v)}>{label}</button>
+              ))}
+            </div>
+          </div>
         </section>
 
-        <section className="kpis kpis-4" aria-label="Shift totals">
-          <Kpi label="Running" value={running} sub={` of ${snap.length}`} />
-          <Kpi label="Made this shift" value={shiftReport.totals.pieces.toLocaleString()} />
-          <Kpi label="Per machine-hour" value={shiftReport.totals.piecesPerMachineHour} sub=" pcs" />
-          <Kpi label="Shift OEE" value={shiftReport.totals.oee} sub="%" />
+        <section className={`summary summary-${level}`} aria-live="polite">
+          <span className="dot" />
+          <p>{headline}</p>
+        </section>
+
+        <section className="kpis" aria-label="This shift">
+          <Kpi label="Running now" value={running} sub={` of ${snap.length}`} />
+          <Kpi label="Envelopes this shift" value={shiftReport.totals.pieces.toLocaleString()} />
+          <Kpi label="Jams this shift" value={shiftReport.totals.jams} />
         </section>
 
         <div className="layout">
           <div className="col-main">
             <section className="panel fsec fsec-floor">
-              <header className="panel-head">
-                <div>
-                  <h2>Floor</h2>
-                  <p className="muted">Tap a machine for its job, history and fixes</p>
-                </div>
-                <Legend />
-              </header>
-              <h3 className="subhead">Inserter lines · inkjet prints the envelopes</h3>
+              <header className="panel-head"><h2>The floor</h2></header>
+
+              <h3 className="subhead">Inserter lines</h3>
+              <p className="muted small fexplain">The inkjet prints the envelope, then the inserter fills it. If one stops, the other pauses.</p>
               <div className="flines">
                 {lines.map((pair, i) => (
                   <div className="fline" key={i}>
-                    <Tile m={pair[0]} selected={selected?.id === pair[0].id} onSelect={select} />
+                    {tile(pair[0])}
                     <span className="fline-arrow" aria-hidden="true">→</span>
-                    <Tile m={pair[1]} selected={selected?.id === pair[1].id} onSelect={select} />
+                    {tile(pair[1])}
                   </div>
                 ))}
               </div>
+
               <h3 className="subhead">FlowMasters</h3>
-              <div className="fgrid">
-                {flowmasters.map((m) => <Tile key={m.id} m={m} selected={selected?.id === m.id} onSelect={select} />)}
-              </div>
+              <div className="fgrid">{flowmasters.map(tile)}</div>
             </section>
 
             <div className="fsec fsec-floor" id="fdetail">
-              {selected && <MachineDetail m={selected} sim={sim} report={report} range={range} version={version} />}
+              {selected && <MachineDetail m={selected} sim={sim} version={version} onClose={() => setSelectedId(null)} />}
             </div>
-
-            <section className="panel fsec fsec-report">
-              <header className="panel-head">
-                <div>
-                  <h2>Output by hour · today</h2>
-                  <p className="muted">Whole floor, pieces per hour (inkjet + inserter counted once)</p>
-                </div>
-              </header>
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={hourly} margin={{ top: 4, right: 8, left: -8, bottom: 0 }}>
-                  <CartesianGrid stroke="var(--grid)" vertical={false} />
-                  <XAxis dataKey="hour" {...axis} interval={1} />
-                  <YAxis {...axis} tickFormatter={(v) => (v >= 1000 ? `${v / 1000}k` : v)} />
-                  <Tooltip {...tip} formatter={(v) => [v.toLocaleString(), 'Pieces']} />
-                  <Bar dataKey="pieces" fill="var(--accent)" radius={[4, 4, 0, 0]} isAnimationActive={false} />
-                </BarChart>
-              </ResponsiveContainer>
-            </section>
-
-            <Report report={report} range={range} setRange={setRange} />
           </div>
 
           <div className="col-side">
-            <section className="panel fsec fsec-findings">
+            <section className="panel fsec fsec-floor fsec-fixes">
               <header className="panel-head">
                 <div>
-                  <h2>Findings</h2>
-                  <p className="muted">What the data says to fix · {RANGES.find((r) => r[0] === range)[1].toLowerCase()}</p>
+                  <h2>Needs attention now</h2>
+                  <p className="muted">Machines that are stopped</p>
                 </div>
-                <RangePicker range={range} setRange={setRange} />
               </header>
-              {report.insights.length === 0 ? (
-                <p className="empty small">Not enough jams yet in this window. Try Today or 5 days.</p>
+              {attention.length === 0 ? (
+                <p className="fallgood">✓ Nothing. Every machine is running.</p>
               ) : (
-                <ul className="findings">
-                  {report.insights.map((f) => (
-                    <li key={f.title} className={`finding finding-${f.level}`}>
-                      <strong>{f.title}</strong>
-                      <p className="muted">{f.text}</p>
-                      <p className="finding-action">→ {f.action}</p>
+                <ul className="fattn">
+                  {attention.map((m) => (
+                    <li key={m.id} className={`st-${STATUS[m.status].level}`}>
+                      <button onClick={() => select(m.id)}>
+                        <strong>{m.id}</strong>
+                        <span>{STATUS[m.status].text}: {m.status === 'BREAKDOWN' ? m.label.split(' · ')[0].split(': ')[1] : m.status === 'CHANGEOVER' ? `new job (${m.job.setup})` : m.label.split(' · ')[0]}</span>
+                        <span className="muted small">
+                          {m.status === 'BREAKDOWN' ? 'Maintenance is working on it' : m.status === 'WAITING' ? `Waiting for ${m.operator}` : m.status === 'CHANGEOVER' ? `${m.operator} is setting up the next job` : `${m.operator} is fixing it`}
+                          {m.minutes ? ` · ${m.minutes} min` : ''}
+                        </span>
+                      </button>
                     </li>
                   ))}
                 </ul>
               )}
             </section>
 
-            <section className="panel fsec fsec-events">
+            <section className="panel fsec fsec-fixes">
               <header className="panel-head">
-                <h2>Event log</h2>
-                <span className="badge">{feed.length} latest</span>
+                <div>
+                  <h2>Top things to fix</h2>
+                  <p className="muted">From the last 5 days of jams and downtime</p>
+                </div>
               </header>
-              <EventList events={feed} onSelect={select} />
+              <ul className="findings">
+                {weekReport.insights.slice(0, 3).map((f) => (
+                  <li key={f.title} className={`finding finding-${f.level}`}>
+                    <strong>{f.title}</strong>
+                    <p className="finding-action">→ {f.action}</p>
+                  </li>
+                ))}
+              </ul>
+            </section>
+
+            <section className="panel fsec fsec-history">
+              <header className="panel-head"><h2>What just happened</h2></header>
+              <EventList events={feed} now={sim.t} onSelect={select} />
             </section>
           </div>
         </div>
+
+        <details className="panel fsec fsec-report freport" open={tab === 'report' || undefined}>
+          <summary>
+            <span><strong>Full report</strong> <span className="muted">· output, OEE, jams by setup and stock, breakdowns</span></span>
+          </summary>
+          <section className="freport-body">
+            <h3 className="subhead">Envelopes per hour today (whole floor)</h3>
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={hourly} margin={{ top: 4, right: 8, left: -8, bottom: 0 }}>
+                <CartesianGrid stroke="var(--grid)" vertical={false} />
+                <XAxis dataKey="hour" {...axis} interval={1} />
+                <YAxis {...axis} tickFormatter={(v) => (v >= 1000 ? `${v / 1000}k` : v)} />
+                <Tooltip {...tip} formatter={(v) => [v.toLocaleString(), 'Envelopes']} />
+                <Bar dataKey="pieces" fill="var(--accent)" radius={[4, 4, 0, 0]} isAnimationActive={false} />
+              </BarChart>
+            </ResponsiveContainer>
+            <Report report={report} range={range} setRange={setRange} />
+          </section>
+        </details>
       </main>
 
       <nav className="tabbar" aria-label="Sections">
@@ -233,12 +268,12 @@ export default function FloorView({ switcher }) {
               <path d={icon} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
             <span>{label}</span>
-            {key === 'floor' && stopped.length > 0 && <span className="tab-badge">{stopped.length}</span>}
+            {key === 'floor' && problems.length > 0 && <span className="tab-badge">{problems.length}</span>}
           </button>
         ))}
       </nav>
 
-      <footer className="footer muted small">MachineIQ · Mail floor simulated in your browser · 9 FlowMasters, 2 inkjet → inserter lines · React · Recharts</footer>
+      <footer className="footer muted small">MachineIQ · Simulated mail floor running in your browser · React · Recharts</footer>
     </div>
   )
 }
@@ -249,16 +284,6 @@ function Kpi({ label, value, sub }) {
       <span className="kpi-label">{label}</span>
       <span className="kpi-value">{value}{sub && <small>{sub}</small>}</span>
     </div>
-  )
-}
-
-function Legend() {
-  return (
-    <ul className="flegend" aria-label="Status colors">
-      {['RUNNING', 'JAM', 'WAITING', 'CHANGEOVER', 'STARVED'].map((k) => (
-        <li key={k} className={`st-${STATUS[k].level}`}><span className="dot" />{STATUS[k].text}</li>
-      ))}
-    </ul>
   )
 }
 
@@ -274,120 +299,100 @@ function RangePicker({ range, setRange }) {
 
 function Tile({ m, selected, onSelect }) {
   const st = STATUS[m.status]
-  const detail = m.status === 'RUNNING'
-    ? `${m.minsSinceAdjust >= 60 ? `⚠ ${Math.floor(m.minsSinceAdjust / 60)}h ${m.minsSinceAdjust % 60}m since adjust` : 'Running'}`
-    : `${m.label}${m.minutes ? ` · ${m.minutes} min` : ''}`
+  const due = m.status === 'RUNNING' && m.minsSinceAdjust >= 60
   return (
     <button className={`ftile st-${st.level} ${selected ? 'selected' : ''}`} onClick={() => onSelect(m.id)} aria-pressed={selected}>
-      <span className="ftile-head">
-        <strong>{m.id}</strong>
-        <span className="ftile-pill"><span className="dot" />{st.text}</span>
-      </span>
-      <span className={`ftile-label ${m.status === 'RUNNING' && m.minsSinceAdjust >= 60 ? 'due' : ''}`}>{detail}</span>
-      <span className="ftile-job muted">{m.job.setup} · {m.job.material.replace(' stock', '')}</span>
-      <span className="ftile-stats">
-        <span><em>{m.shift ? m.shift.pieces.toLocaleString() : '—'}</em> pcs</span>
-        <span><em>{m.shift ? m.shift.jams : '—'}</em> jams</span>
-        <span><em>{m.shift ? `${Math.round(m.shift.oee)}%` : '—'}</em> OEE</span>
-      </span>
+      <strong className="ftile-name">{m.id}</strong>
+      <span className="ftile-status"><span className="dot" />{st.text}</span>
+      <span className={`ftile-label ${due ? 'due' : ''}`}>{whatsHappening(m)}</span>
     </button>
   )
 }
 
-function MachineDetail({ m, sim, report, range, version }) {
+function MachineDetail({ m, sim, version, onClose }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const events = useMemo(() => sim.recentEvents(8, m.id), [sim, m.id, version])
-  const stats = report.machines.find((x) => x.id === m.id)
-  const myJams = useMemo(() => {
-    const keys = new Set(sim.shiftKeys(range))
+  const events = useMemo(() => sim.recentEvents(5, m.id), [sim, m.id, version])
+  const topJams = useMemo(() => {
+    const keys = new Set(sim.shiftKeys('week'))
     const counts = {}
     for (const e of sim.events) {
       if (e.kind !== 'jam' || e.machineId !== m.id || !keys.has(e.shiftKey) || e.t > sim.t) continue
-      ;(counts[e.name] ||= { name: e.name, fix: e.fix, n: 0, min: 0 }).n++
-      counts[e.name].min += e.minutes
+      ;(counts[e.name] ||= { name: e.name, fix: e.fix, n: 0 }).n++
     }
-    return Object.values(counts).sort((a, b) => b.n - a.n)
+    return Object.values(counts).sort((a, b) => b.n - a.n).slice(0, 3)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sim, m.id, range, version])
+  }, [sim, m.id, version])
   const st = STATUS[m.status]
   const due = m.minsSinceAdjust >= 60
+  const typeNote = { FlowMaster: 'Folds and inserts mail', Inserter: `Fills envelopes printed by ${m.partner}`, Inkjet: `Prints envelopes for ${m.partner}` }[m.type]
 
   return (
     <section className={`panel fdetail st-${st.level}`}>
       <header className="panel-head">
         <div>
           <h2>{m.id} · {m.type}</h2>
-          <p className="muted">{m.partner ? `Runs as one line with ${m.partner} · ` : ''}Operator {m.operator}</p>
+          <p className="muted">{typeNote} · operator {m.operator}</p>
         </div>
-        <span className="ftile-pill big"><span className="dot" />{st.text}</span>
+        <button className="icon-btn" onClick={onClose} aria-label="Close">✕</button>
       </header>
 
-      <p className="fdetail-now">{m.status === 'RUNNING' ? 'Running normally' : m.label}{m.minutes ? ` · ${m.minutes} min so far` : ''}{m.until ? ` · about ${m.until} min to go` : ''}</p>
+      <p className="fdetail-now">
+        <span className="ftile-status"><span className="dot" />{st.text}</span>
+        {m.status === 'RUNNING' ? ' Making mail normally.' : ` ${m.label}${m.minutes ? ` · ${m.minutes} min so far` : ''}${m.until ? ` · about ${m.until} min to go` : ''}`}
+      </p>
 
       <dl className="fdetail-grid">
-        <div><dt>Job</dt><dd>{m.job.jobId}</dd></div>
-        <div><dt>Setup</dt><dd>{m.job.setup}</dd></div>
-        <div><dt>Stock</dt><dd className={m.job.material === 'Bad stock' ? 'bad' : ''}>{m.job.material}</dd></div>
-        <div><dt>Left in job</dt><dd>{m.job.piecesLeft.toLocaleString()}</dd></div>
-        <div><dt>Since adjustment</dt><dd className={due ? 'warn' : ''}>{Math.floor(m.minsSinceAdjust / 60)}h {m.minsSinceAdjust % 60}m{due ? ' · due' : ''}</dd></div>
-        <div><dt>Pieces/hr ({RANGES.find((r) => r[0] === range)[1].toLowerCase()})</dt><dd>{stats?.piecesPerHour ?? '—'}</dd></div>
+        <div><dt>Job</dt><dd>{m.job.setup} pages</dd></div>
+        <div><dt>Paper / envelopes</dt><dd className={m.job.material === 'Bad stock' ? 'bad' : ''}>{m.job.material.replace(' stock', '')}</dd></div>
+        <div><dt>Last adjusted</dt><dd className={due ? 'warn' : ''}>{Math.floor(m.minsSinceAdjust / 60) ? `${Math.floor(m.minsSinceAdjust / 60)}h ` : ''}{m.minsSinceAdjust % 60}m ago{due ? ' · due' : ''}</dd></div>
+        <div><dt>Made this shift</dt><dd>{m.shift ? m.shift.pieces.toLocaleString() : '—'}</dd></div>
+        <div><dt>Jams this shift</dt><dd>{m.shift ? m.shift.jams : '—'}</dd></div>
+        <div><dt>Left in this job</dt><dd>{m.job.piecesLeft.toLocaleString()}</dd></div>
       </dl>
 
-      {stats && (
-        <div className="oee-row">
-          <Gauge label="Availability" v={stats.availability} />
-          <Gauge label="Performance" v={stats.performance} />
-          <Gauge label="Quality" v={stats.quality} />
-          <Gauge label="OEE" v={stats.oee} strong />
-        </div>
+      {topJams.length > 0 && (
+        <>
+          <h3 className="subhead">Its most common jams (5 days) and the fix</h3>
+          <ul className="fjams">
+            {topJams.map((j) => (
+              <li key={j.name}><span><strong>{j.name}</strong> <span className="muted">×{j.n}</span></span><span className="fl-fix">→ {j.fix}</span></li>
+            ))}
+          </ul>
+        </>
       )}
 
-      <h3 className="subhead">Top jams · {RANGES.find((r) => r[0] === range)[1].toLowerCase()}</h3>
-      {myJams.length === 0 ? <p className="empty small">No jams in this window.</p> : (
-        <ul className="fjams">
-          {myJams.slice(0, 4).map((j) => (
-            <li key={j.name}><span><strong>{j.name}</strong> ×{j.n} <span className="muted">· {j.min} min</span></span><span className="fl-fix">→ {j.fix}</span></li>
-          ))}
-        </ul>
-      )}
-
-      <h3 className="subhead">Recent events</h3>
-      <EventList events={events} compact />
+      <h3 className="subhead">Recent</h3>
+      <EventList events={events} now={sim.t} compact />
     </section>
   )
 }
 
-function Gauge({ label, v, strong }) {
-  const lvl = v >= 85 ? 'good' : v >= 65 ? 'ok' : 'bad'
-  return (
-    <div className={`gauge ${strong ? 'strong' : ''}`}>
-      <span className="muted small">{label}</span>
-      <strong>{v}%</strong>
-      <span className="track"><span className="bar" data-level={lvl} style={{ width: `${Math.min(v, 100)}%` }} /></span>
-    </div>
-  )
+/** Turn an event into one plain sentence. */
+function describe(e, now) {
+  const active = e.endT > now
+  if (e.kind === 'changeover') return { who: e.stationId, what: `Switched to a new job (${e.setup})`, how: active ? 'setting up now' : `took ${e.minutes} min` }
+  if (e.kind === 'breakdown') return { who: e.machineId, what: `Broke down: ${e.part.toLowerCase()} (${e.category.toLowerCase()})`, how: active ? 'maintenance working on it' : `down ${Math.round(e.minutes / 6) / 10} h` }
+  const wait = e.waitForOperatorMin ? `, after waiting ${e.waitForOperatorMin} min` : ''
+  return { who: e.machineId, what: e.name, how: active ? `${e.operator} fixing now${wait}` : `fixed in ${e.minutes} min by ${e.operator}${wait}` }
 }
 
-function EventList({ events, onSelect, compact }) {
+function EventList({ events, now, onSelect, compact }) {
   if (!events.length) return <p className="empty small">Nothing yet.</p>
   return (
     <ul className={`fevents ${compact ? 'compact' : ''}`}>
-      {events.map((e, i) => (
-        <li key={`${e.t}-${e.machineId}-${i}`} className={`ev-${e.kind}`}>
-          <span className="ev-time muted">{e.day} {e.time}</span>
-          <span className="ev-main">
-            {!compact && (
-              <button className="ev-machine" onClick={() => onSelect?.(e.machineId)}>{e.kind === 'changeover' ? e.stationId : e.machineId}</button>
-            )}
-            <span>{e.name}</span>
-            <span className="muted small">
-              {e.minutes} min{e.waitForOperatorMin ? ` + ${e.waitForOperatorMin} min waiting` : ''}
-              {e.kind === 'breakdown' ? ' · maintenance' : e.operator ? ` · ${e.operator}` : ''}
-              {e.kind === 'jam' ? ` · ${e.setup}, ${e.material.replace(' stock', '').toLowerCase()} stock` : ''}
+      {events.map((e, i) => {
+        const d = describe(e, now)
+        return (
+          <li key={`${e.t}-${e.machineId}-${i}`} className={`ev-${e.kind}`}>
+            <span className="ev-time muted">{e.time}</span>
+            <span className="ev-main">
+              {!compact && <button className="ev-machine" onClick={() => onSelect?.(e.machineId)}>{d.who}</button>}
+              <span>{d.what}</span>
+              <span className="muted small">{d.how}</span>
             </span>
-          </span>
-        </li>
-      ))}
+          </li>
+        )
+      })}
     </ul>
   )
 }
