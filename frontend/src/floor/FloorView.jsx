@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { FloorSim, fmtDate, fmtTime } from './floorSim'
+import { BREAKDOWN_GUIDE, JAM_GUIDE, MACHINE_INFO, SOURCES } from './machineGuide'
 import './floor.css'
 
 // Plain words for each machine state.
@@ -234,6 +235,25 @@ export default function FloorView({ switcher }) {
               </ul>
             </section>
 
+            <section className="panel fsec fsec-fixes">
+              <header className="panel-head">
+                <div>
+                  <h2>Jam guide</h2>
+                  <p className="muted">Where each jam happens, why, and what to check</p>
+                </div>
+              </header>
+              <div className="fguide">
+                {Object.keys(JAM_GUIDE).map((name) => <JamHelp key={name} name={name} />)}
+              </div>
+              <p className="muted small fsources">
+                Machine specs from{' '}
+                {SOURCES.map((src, i) => (
+                  <span key={src.url}>{i ? ', ' : ''}<a href={src.url} target="_blank" rel="noreferrer">{src.label}</a></span>
+                ))}
+                . Jam steps are a general guide: follow your site's procedures and lockout rules.
+              </p>
+            </section>
+
             <section className="panel fsec fsec-history">
               <header className="panel-head"><h2>What just happened</h2></header>
               <EventList events={feed} now={sim.t} onSelect={select} />
@@ -324,6 +344,9 @@ function MachineDetail({ m, sim, version, onClose }) {
   }, [sim, m.id, version])
   const st = STATUS[m.status]
   const due = m.minsSinceAdjust >= 60
+  const info = MACHINE_INFO[m.type]
+  const currentJam = ['JAM', 'WAITING'].includes(m.status) ? m.label.split(' · ')[0] : null
+  const fixGuide = currentJam ? JAM_GUIDE[currentJam] : null
   const typeNote = { FlowMaster: 'Folds and inserts mail', Inserter: `Fills envelopes printed by ${m.partner}`, Inkjet: `Prints envelopes for ${m.partner}` }[m.type]
 
   return (
@@ -341,6 +364,20 @@ function MachineDetail({ m, sim, version, onClose }) {
         {m.status === 'RUNNING' ? ' Making mail normally.' : ` ${m.label}${m.minutes ? ` · ${m.minutes} min so far` : ''}${m.until ? ` · about ${m.until} min to go` : ''}`}
       </p>
 
+      {fixGuide && (
+        <div className="ffix">
+          <h3>How to fix: {currentJam}</h3>
+          <p className="muted small">{fixGuide.where}</p>
+          <ol>{fixGuide.check.map((c) => <li key={c}>{c}</li>)}</ol>
+        </div>
+      )}
+      {m.status === 'BREAKDOWN' && (
+        <div className="ffix ffix-stop">
+          <h3>Breakdown: call maintenance</h3>
+          <p>{BREAKDOWN_GUIDE[m.label.split(':')[0]] ?? BREAKDOWN_GUIDE.Mechanical}</p>
+        </div>
+      )}
+
       <dl className="fdetail-grid">
         <div><dt>Job</dt><dd>{m.job.setup} pages</dd></div>
         <div><dt>Paper / envelopes</dt><dd className={m.job.material === 'Bad stock' ? 'bad' : ''}>{m.job.material.replace(' stock', '')}</dd></div>
@@ -352,18 +389,48 @@ function MachineDetail({ m, sim, version, onClose }) {
 
       {topJams.length > 0 && (
         <>
-          <h3 className="subhead">Its most common jams (5 days) and the fix</h3>
-          <ul className="fjams">
-            {topJams.map((j) => (
-              <li key={j.name}><span><strong>{j.name}</strong> <span className="muted">×{j.n}</span></span><span className="fl-fix">→ {j.fix}</span></li>
-            ))}
-          </ul>
+          <h3 className="subhead">Its most common jams (5 days) · tap for the fix</h3>
+          <div className="fguide">
+            {topJams.map((j) => <JamHelp key={j.name} name={j.name} count={j.n} />)}
+          </div>
         </>
       )}
+
+      <details className="fabout">
+        <summary>About this machine: {info.name}</summary>
+        <p>{info.what}</p>
+        <dl className="fspecs">
+          <div><dt>Made by</dt><dd>{info.maker}</dd></div>
+          {info.specs.map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}
+          <div><dt>Sections</dt><dd>{info.sections.join(' → ')}</dd></div>
+        </dl>
+        {info.floorNote && <p className="muted small">{info.floorNote}</p>}
+      </details>
 
       <h3 className="subhead">Recent</h3>
       <EventList events={events} now={sim.t} compact />
     </section>
+  )
+}
+
+/** One jam type, expandable: where it happens, usual causes, what to check. */
+function JamHelp({ name, count }) {
+  const g = JAM_GUIDE[name]
+  if (!g) return null
+  return (
+    <details className="fjam">
+      <summary>
+        <strong>{name}</strong>{count ? <span className="muted"> ×{count}</span> : null}
+        <span className="muted small fjam-where">{g.where}</span>
+      </summary>
+      <div className="fjam-body">
+        <p className="fjam-h">Usually because</p>
+        <ul>{g.why.map((w) => <li key={w}>{w}</li>)}</ul>
+        <p className="fjam-h">Check</p>
+        <ol>{g.check.map((c) => <li key={c}>{c}</li>)}</ol>
+        {g.tip && <p className="fjam-tip">{g.tip}</p>}
+      </div>
+    </details>
   )
 }
 

@@ -156,3 +156,30 @@
 .freport[open] > summary::after { content: 'Hide ▴'; }
 .freport-body { padding: 0 16px 16px; }
 .freport-body > .panel { border: 0; padding: 0; background: none; margin-top: 16px; }
+
+/* Machine guide */
+.ffix { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 10px; padding: 12px 14px; margin-bottom: 12px; }
+.ffix h3 { font-size: 1rem; margin-bottom: 2px; }
+.ffix ol { margin: 8px 0 0; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; }
+.ffix-stop p { margin-top: 4px; }
+.fguide { display: flex; flex-direction: column; gap: 6px; }
+.fjam { background: var(--panel-2); border-radius: 10px; }
+.fjam > summary { cursor: pointer; list-style: none; padding: 9px 32px 9px 12px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 6px; position: relative; }
+.fjam > summary::-webkit-details-marker { display: none; }
+.fjam > summary::after { content: '+'; position: absolute; right: 12px; top: 8px; color: var(--accent); font-weight: 700; font-size: 1.1rem; }
+.fjam[open] > summary::after { content: '−'; }
+.fjam-where { flex-basis: 100%; }
+.fjam-body { padding: 0 12px 10px; font-size: 0.86rem; }
+.fjam-body ul, .fjam-body ol { margin: 2px 0 8px; padding-left: 20px; display: flex; flex-direction: column; gap: 2px; }
+.fjam-h { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin-top: 4px; }
+.fjam-tip { color: #fcd34d; }
+.fabout { margin-top: 14px; background: var(--panel-2); border-radius: 10px; padding: 10px 12px; font-size: 0.88rem; }
+.fabout > summary { cursor: pointer; font-weight: 600; }
+.fabout > p { margin: 8px 0; }
+.fspecs { margin: 0 0 8px; display: flex; flex-direction: column; gap: 6px; }
+.fspecs div { display: grid; grid-template-columns: 120px 1fr; gap: 8px; }
+.fspecs dt { color: var(--muted); }
+.fspecs dd { margin: 0; }
+.fsources { margin-top: 10px; }
+.fsources a { color: var(--accent); }
+@media (max-width: 720px) { .fspecs div { grid-template-columns: 1fr; gap: 0; } }
