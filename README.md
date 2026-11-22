@@ -37,18 +37,22 @@ before they become a stopped line.
 
 ## Jam helper
 
-A phone-first helper for operators on a mail floor running **FlowMaster** inserters, a
-**Pitney Bowes inserter** and an **inkjet** that prints its envelopes. Three taps:
+A phone-first helper for operators on a mail floor running **FlowMaster** inserters (two of them
+fed by an inkjet that prints the envelopes, with a Keyence camera reading the barcode).
 
-1. **Which machine?** FlowMaster, Inserter or Inkjet
+1. **Which machine?** FM-01 to FM-09, or the inkjet → FlowMaster lines
 2. **What's wrong?** Front table jam, accumulator jam, doubles, envelope jam, failed to feed,
-   Keyence camera read fail, bad print, nozzle clog, low ink, or "something broke"
-3. **What to do:** where it happens, numbered checks, and why it usually happens
+   camera read fail, bad print, nozzle clog, low ink, or "something broke"
+3. **Fix it:** the quick fix in order, plus "keeps coming back?" with the real causes to check
 
-Operators can add their own floor's notes to any fix, and tap **Fixed it** to keep a count for
-the day (both saved on the phone). The guide lives in
-[`frontend/src/floor/machineGuide.js`](frontend/src/floor/machineGuide.js): FlowMaster specs from
-BlueCrest's public pages, jam steps written as a general guide (not copied from any manual).
+- **Repeat-jam alert:** the 3rd time the same jam hits the same machine in a day, the helper
+  says the quick fix isn't holding and shows the real causes first.
+- **Automatic timer:** starts when you open a jam, stops at **Fixed it**, so you see how long
+  jams really take and which was the longest today.
+- **Floor notes** on any fix. Notes and the day's log are saved on the phone.
+
+The fixes in [`frontend/src/floor/machineGuide.js`](frontend/src/floor/machineGuide.js) come
+from operators on the floor. It's a reminder tool, not a manual.
 
 > The OPC UA backend, Python simulator and assistant below are the earlier sensor-monitoring
 > prototype. The dashboard no longer uses them.

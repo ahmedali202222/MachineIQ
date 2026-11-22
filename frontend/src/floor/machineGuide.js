@@ -1,177 +1,149 @@
 /**
- * Machine guide: what each machine on the mail floor is, and how to handle each jam.
+ * Jam guide for a mail floor running FlowMaster inserters (two of them fed by an inkjet that
+ * prints the envelopes, with a Keyence camera reading the barcode).
  *
- * Machine specs come from the manufacturers' public pages (see SOURCES). The jam guide is a
- * general, plain-language troubleshooting reference written for this project from operator
- * experience on the floor. It is not copied from any manual: always follow your site's
- * procedures, lockout rules and the machine's own operator guide.
+ * The quick fixes and the "keeps coming back" causes come from the operators on the floor.
+ * This is a reminder tool, not a manual: always follow your site's procedures and lockout rules.
+ *
+ *   quick:  what to do right now to get running again, in order
+ *   repeat: when the same jam keeps coming back, the real causes to check (most common first)
+ *   why:    one line on where the jam happens
  */
 
-export const SOURCES = [
-  { label: 'BlueCrest: FlowMaster RS Flex / RS Smart specs', url: 'https://www.bluecrestinc.com/products/inserters/flowmaster-rs-flex/' },
-  { label: 'BlueCrest: FlowMaster RS cut sheet', url: 'https://landing.bluecrestinc.com/hubfs/PDFs/Flowmaster_cut-sheet_us_web.pdf' },
-  { label: 'KEYENCE: troubleshooting problems reading codes', url: 'https://www.keyence.com/ss/products/auto_id/codereader/code_verification/faq-read-error.jsp' },
+/** The machines on the floor. Rename the ids to match the numbers on your machines. */
+export const MACHINES = [
+  ...Array.from({ length: 9 }, (_, i) => ({ id: `FM-0${i + 1}`, type: 'FlowMaster' })),
+  { id: 'INK-01', type: 'Inkjet', note: 'Line 1 inkjet' },
+  { id: 'INS-01', type: 'Inserter', note: 'Line 1 FlowMaster' },
+  { id: 'INK-02', type: 'Inkjet', note: 'Line 2 inkjet' },
+  { id: 'INS-02', type: 'Inserter', note: 'Line 2 FlowMaster' },
 ]
 
-export const MACHINE_INFO = {
-  FlowMaster: {
-    name: 'FlowMaster RS inserting system',
-    maker: 'BlueCrest (formerly Pitney Bowes)',
-    what: 'High-speed direct mail inserter. Feeders drop inserts onto the track, the collation travels to the front table, and it is pushed into the envelope, sealed and sent out.',
-    specs: [
-      ['Rated speed', 'Up to 14,000/hr on #10, 12,000/hr on 6×9, 9,000/hr on flats (cycle rates)'],
-      ['Envelopes', '6.75"–13" wide, 3.75"–10" deep'],
-      ['Feeder stations', '3, 6, 9, 12 or 15 (rotary and friction feeders)'],
-      ['Materials', 'Cut sheets, pre-folded stock, buck slips, BREs, booklets'],
-      ['Options', 'Cut-sheet input (feed, scan, accumulate, fold), bulk feeder, read & print, Speed Sort output'],
-    ],
-    sections: ['Feeders', 'Accumulator & folder (cut-sheet input)', 'Collation track', 'Front table (insertion)', 'Envelope feeder', 'Sealer', 'Output'],
-    floorNote: 'Rated speed is the machine at full cycle. Real floor output (about 500–1,000 an hour here) is lower because of jams, loading, changeovers and job size.',
-  },
-  Inserter: {
-    name: 'Pitney Bowes inserter',
-    maker: 'Pitney Bowes',
-    what: 'Takes the envelope printed by its inkjet, inserts the collated pages and seals it. Runs as one line with the inkjet: if either stops, both stop.',
-    specs: [
-      ['Model', 'Not set yet (add your model to show its specs)'],
-      ['Line', 'Fed by an inkjet that prints the envelopes'],
-      ['Camera', 'Keyence code reader checks the barcode on each piece'],
-    ],
-    sections: ['Sheet feeder', 'Accumulator & folder', 'Insert stations', 'Front table (insertion)', 'Envelope feeder', 'Camera / reader', 'Sealer', 'Output'],
-  },
-  Inkjet: {
-    name: 'Inkjet envelope printer',
-    maker: 'Inline with the inserter',
-    what: 'Prints the address and barcode on each envelope before it goes into the inserter. A Keyence camera reads the barcode to make sure the right pages go in the right envelope.',
-    specs: [
-      ['Feeds', 'Its inserter (same line)'],
-      ['Camera', 'Keyence code reader: auto-focus and auto-tuning, set up in AutoID Network Navigator'],
-      ['Watch for', 'Ink level, clogged nozzles, smears on glossy or coated envelopes'],
-    ],
-    sections: ['Envelope feed', 'Print heads', 'Ink supply', 'Dryer / transport', 'Camera / reader'],
-  },
-}
-
-/** The problems an operator can pick for each machine, in the order they show up. */
+/** The problems an operator can pick for each kind of machine. */
 export const PROBLEMS = {
   FlowMaster: ['Front table jam', 'Accumulator jam', 'Doubles', 'Envelope jam', 'Failed to feed'],
-  Inserter: ['Front table jam', 'Accumulator jam', 'Doubles', 'Envelope jam', 'Failed to feed', 'Camera read fail'],
+  Inserter: ['Front table jam', 'Camera read fail', 'Accumulator jam', 'Doubles', 'Envelope jam', 'Failed to feed'],
   Inkjet: ['Camera read fail', 'Bad print / smear', 'Nozzle clog', 'Low ink'],
 }
 
-/**
- * For each jam: where on the machine it happens, why it usually happens, and what to check.
- * `why` and `check` are in the order an operator would usually work through them.
- */
 export const JAM_GUIDE = {
   'Front table jam': {
-    where: 'Front table: where the collation is pushed into the open envelope.',
-    why: [
-      'Front table guides not set for this envelope / page size after a changeover',
-      'Envelope throat not opening fully, or flap not held back',
-      'Collation too thick or too wide for the envelope',
-      'Dirty or worn pusher fingers, belts or guides',
+    where: 'Front table: where the collation is pushed into the envelope.',
+    usual: 'Usually under 5 min',
+    quick: [
+      'Pull the jammed piece',
+      'Check the envelope: flap, size, opening all the way',
+      'Adjust the front table for this job',
+      'Re-run the piece',
     ],
-    check: [
-      'Clear the piece and look at where it stopped (envelope edge or collation edge)',
-      'Re-check the front table and side guide settings for this envelope size',
-      'Run one test piece slowly and watch the envelope open',
-      'If it keeps happening, check fingers / belts for wear and call maintenance',
+    repeat: [
+      { cause: 'Front table not set right for this job', fix: 'Reset the front table and guides from scratch for this envelope and page size' },
+      { cause: 'Bad envelopes', fix: 'Check flaps and size; try a fresh box of envelopes' },
+      { cause: 'Collation too thick', fix: 'Count the pages and inserts; check they fit this envelope' },
+      { cause: 'Worn fingers, belts or suction', fix: 'Call maintenance; note which machine and how often' },
     ],
-    tip: 'Just changed jobs? Re-check the front table guides first.',
   },
   'Accumulator jam': {
     where: 'Accumulator: where sheets stack up before folding.',
-    why: [
-      'Sheets not squared, curled or stuck together with static',
-      'Page count higher than the accumulator can hold',
-      'Sheets skewing on the way in from the feeder',
+    quick: [
+      'Pull the stuck sheets',
+      'Square the pages',
+      'Fan and jog the paper before reloading',
+      'Adjust the guides',
     ],
-    check: [
-      'Clear the stack and square it up',
-      'Fan and jog the paper before loading; look for curl',
-      'Check the page count for this job against the setup',
-      'Check the side guides on the sheet feeder',
+    repeat: [
+      { cause: 'Curled or static paper', fix: 'Fan the paper, flip the stack, or try another ream' },
+      { cause: 'Too many pages for the setup', fix: 'Check the page count for this job' },
+      { cause: 'Guides set wrong', fix: 'Reset the guides so sheets come in straight' },
+      { cause: 'Worn or dirty rollers, belts or sensors', fix: 'Clean them; if it keeps jamming, call maintenance' },
     ],
   },
   Doubles: {
-    where: 'Feeder: two pieces fed when the machine expected one.',
-    why: [
-      'Separator gap set wrong for this stock thickness',
-      'Sheets or inserts stuck together (static, humidity, fresh coated stock)',
-      'Worn or dirty feeder tires / separator',
-      'Double-detect not calibrated for this material',
+    where: 'Feeder: two pieces fed instead of one.',
+    quick: [
+      'Pull the double',
+      'Fan and jog the stock',
+      'Adjust the feeder gap for this stock',
+      'Clean the feeder rubbers',
     ],
-    check: [
-      'Pull the double and check whether the next piece is the right one',
-      'Fan and jog the stock; reload a smaller stack',
-      'Re-set the separator gap with a single piece of this stock',
-      'Clean the feeder tires; replace if glazed or worn',
+    repeat: [
+      { cause: 'Feeder gap set wrong for this stock', fix: 'Re-set the gap using one piece of this stock' },
+      { cause: 'Stock sticking together', fix: 'Glossy, static or fresh print: fan it well, load smaller stacks' },
+      { cause: 'Worn feeder rubbers', fix: 'Replace glazed or worn tires / separators' },
+      { cause: 'Hopper overloaded', fix: 'Load a smaller stack' },
     ],
   },
   'Envelope jam': {
-    where: 'Envelope feeder or flap area.',
-    why: [
-      'Flaps curled or sticking together (humidity, storage)',
-      'Hopper overloaded or envelopes loaded unevenly',
-      'Envelope out of spec for the setup (size, flap depth)',
-      'Weak suction / vacuum on the envelope feed',
+    where: 'Envelope feeder and flap area.',
+    quick: [
+      'Clear the jammed envelope',
+      'Flex and fan the envelopes; check the flaps',
+      'Load a smaller, even stack',
+      'Restart',
     ],
-    check: [
-      'Flex and fan the envelopes; look at the flaps',
-      'Load a smaller, even stack in the hopper',
-      'Check the envelope size matches the job setup',
-      'Check suction cups / vacuum for dirt or leaks',
+    repeat: [
+      { cause: 'Flaps curled or sticking (most common)', fix: 'Flex and fan every stack; open a fresh box; keep boxes closed and away from humidity' },
+      { cause: 'Hopper loaded badly', fix: 'Smaller, even stack' },
+      { cause: 'Wrong envelope for the setup', fix: 'Check size and flap against the job' },
+      { cause: 'Weak suction / vacuum', fix: 'Clean the cups; listen for air leaks; call maintenance' },
     ],
   },
   'Failed to feed': {
-    where: 'Feeder: the machine called for a piece and nothing came.',
-    why: [
-      'Feeder empty or stack too low / too high',
-      'Feeder tires or suction cups worn or dirty',
-      'Pieces stuck together or stuck to the hopper',
+    where: 'Feeder: nothing came when the machine called for a piece.',
+    quick: [
+      'Check the feeder has stock',
+      'Fan the stock so pieces move freely',
+      'Clean the feeder rubbers / suction cups',
+      'Restart',
     ],
-    check: [
-      'Check the stack height and refill',
-      'Clean the feeder tires / suction cups',
-      'Fan the stock and check it moves freely',
+    repeat: [
+      { cause: 'Stock stuck together (most common)', fix: 'Fan and jog well before loading; break up blocks of stock' },
+      { cause: 'Dirty or worn rubbers', fix: 'Clean; replace if worn' },
+      { cause: 'Stack too high or too low', fix: 'Keep the stack at the right height' },
+      { cause: 'Feeder running empty', fix: 'Load before it runs out' },
     ],
   },
   'Camera read fail': {
-    where: 'Keyence camera / code reader: the barcode was not read, so the machine stopped to protect mail integrity.',
-    why: [
-      'Glare: glossy or coated stock, or reader angled straight at the code',
-      'Barcode printed light, smeared or partly off the envelope (inkjet)',
-      'Code moved in the window after a setup change',
-      'Reader settings not tuned for this job (code type, exposure)',
-    ],
-    check: [
+    where: 'Keyence camera: the barcode was not read, so the machine stopped.',
+    quick: [
       'Look at the failed piece: is the code printed clean and in the right spot?',
-      'Wipe the camera lens / window',
-      'In AutoID Network Navigator, check the live view and re-run tuning for this job',
-      'If glare: tilt the reader slightly off straight-on',
+      'Fix the print if it is light, smeared or off',
+      'Wipe the camera lens',
+      'Move / aim the camera at the code',
+      'Re-tune in the Keyence software (AutoID Network Navigator)',
     ],
-    tip: 'If it keeps failing after a job change, re-run tuning for the new job.',
+    repeat: [
+      { cause: 'New job, old camera settings', fix: 'Re-tune the camera for this job in the Keyence software' },
+      { cause: 'Inkjet print quality', fix: 'Check the inkjet: heads, ink, head height' },
+      { cause: 'Glare from glossy envelopes', fix: 'Angle the camera slightly instead of straight on' },
+      { cause: 'Code moved after a setup change', fix: 'Re-aim the camera at where the code prints now' },
+    ],
   },
   'Bad print / smear': {
     where: 'Inkjet print area.',
-    why: ['Print head too high or too low for this envelope', 'Coated / glossy envelopes not drying', 'Dirty heads'],
-    check: ['Check head height for this envelope', 'Check the dryer and spacing', 'Wipe / purge the heads'],
+    quick: ['Check head height for this envelope', 'Wipe / purge the heads', 'Check the envelopes are dry and clean'],
+    repeat: [
+      { cause: 'Glossy / coated envelopes not drying', fix: 'Slow down or add drying space' },
+      { cause: 'Head height wrong for this envelope', fix: 'Reset head height at changeover' },
+    ],
   },
   'Nozzle clog': {
     where: 'Inkjet print heads.',
-    why: ['Dried ink after idle time', 'Paper dust on the heads'],
-    check: ['Run a purge / head clean', 'Print a test pattern and check for missing lines', 'Keep the heads capped when stopped'],
+    quick: ['Run a purge / head clean', 'Print a test and look for missing lines'],
+    repeat: [{ cause: 'Ink drying while stopped', fix: 'Cap or purge the heads when the line is down' }],
   },
   'Low ink': {
     where: 'Inkjet ink supply.',
-    why: ['Ink ran out mid-job'],
-    check: ['Replace the cartridge / refill', 'Check ink level at the start of each job'],
+    quick: ['Replace the cartridge / refill', 'Restart'],
+    repeat: [{ cause: 'Running out mid-job', fix: 'Check ink at the start of each job' }],
   },
 }
 
 export const BREAKDOWN_GUIDE = {
-  Mechanical: 'Gears, belts, pulleys, wheels, bearings or shafts. Stop the machine, follow lockout, and call maintenance. Note the noise or symptom before it stopped.',
-  Electrical: 'Sensor, motor, wiring, power supply or control board. Call maintenance; do not reset repeatedly.',
-  'Air / pneumatic': 'Air leak, low air pressure, valve, cylinder or vacuum pump. Check the air gauge, listen for leaks, call maintenance.',
+  Mechanical: 'Gears, belts, pulleys, wheels, bearings or shafts. Stop, follow lockout, call maintenance. Note the noise or symptom.',
+  Electrical: 'Sensor, motor, wiring, power supply or control board. Call maintenance; don\'t keep resetting.',
+  'Air / pneumatic': 'Air leak, low pressure, valve, cylinder or vacuum pump. Check the air gauge, listen for leaks, call maintenance.',
 }
+
+/** How many times the same jam on the same machine in a day counts as "keeps coming back". */
+export const REPEAT_AT = 3
