@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { api, usePolling } from './api'
 import AlertsPanel from './components/AlertsPanel'
 import Assistant from './components/Assistant'
@@ -7,7 +7,32 @@ import LogFaultDialog from './components/LogFaultDialog'
 import MachineCard from './components/MachineCard'
 import MachineDetail from './components/MachineDetail'
 import StatsPanel from './components/StatsPanel'
+import FloorView from './floor/FloorView'
 import { lineSummary } from './health'
+
+const VIEWS = [['floor', 'Mail floor'], ['line', 'Line A sensors']]
+const viewFromHash = () => (window.location.hash === '#line' ? 'line' : 'floor')
+
+/** Two views: the 13-machine mail floor (default) and the OPC UA sensor view of Line A. */
+export default function App() {
+  const [view, setView] = useState(viewFromHash)
+  useEffect(() => {
+    const onHash = () => setView(viewFromHash())
+    window.addEventListener('hashchange', onHash)
+    return () => window.removeEventListener('hashchange', onHash)
+  }, [])
+  const switcher = (
+    <div className="segmented view-switch" role="tablist" aria-label="View">
+      {VIEWS.map(([key, label]) => (
+        <button key={key} role="tab" aria-selected={view === key} className={view === key ? 'active' : ''}
+          onClick={() => { window.location.hash = key; setView(key); window.scrollTo({ top: 0 }) }}>
+          {label}
+        </button>
+      ))}
+    </div>
+  )
+  return view === 'floor' ? <FloorView switcher={switcher} /> : <LineView switcher={switcher} />
+}
 
 // On phones the page shows one of these at a time, picked from the bottom bar.
 const TABS = [
@@ -17,7 +42,7 @@ const TABS = [
   ['ask', 'Ask', 'M4 5h16v11H9l-5 4zM8 10h8'],
 ]
 
-export default function App() {
+function LineView({ switcher }) {
   const config = usePolling(api.config, 60000)
   const machinesQ = usePolling(api.machines, 2000)
   const alertsQ = usePolling(api.alerts, 3000)
@@ -62,6 +87,7 @@ export default function App() {
             <p className="muted small">Demo Plant · Line A</p>
           </div>
         </div>
+        {switcher}
         {config.data?.browserDemo && (
           <a className="demo-tag" href="https://github.com/ahmedali202222/MachineIQ" target="_blank" rel="noreferrer">
             Demo · machines simulated in your browser
