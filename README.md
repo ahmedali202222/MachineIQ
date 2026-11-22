@@ -7,7 +7,7 @@ assistant that answers from the equipment manuals.
 
 [![CI](https://github.com/ahmedali202222/MachineIQ/actions/workflows/ci.yml/badge.svg)](https://github.com/ahmedali202222/MachineIQ/actions/workflows/ci.yml)
 
-![MachineIQ dashboard](docs/screenshots/dashboard.png)
+![MachineIQ jam helper](docs/screenshots/jam-helper.png)
 
 ## Why I built it
 
@@ -34,6 +34,30 @@ before they become a stopped line.
   in search mode and shows the relevant sections.
 - **Demo controls**: trigger a jam, overheating motor, worn bearing or sensor dropout from the
   dashboard and watch MachineIQ react.
+
+## Jam helper
+
+**Open it on your phone:** https://ahmedali202222.github.io/MachineIQ/
+
+A phone-first helper for operators on a mail floor running **FlowMaster** inserters (two of them
+fed by an inkjet that prints the envelopes, with a Keyence camera reading the barcode).
+
+1. **Which machine?** FM-01 to FM-09, or the inkjet → FlowMaster lines
+2. **What's wrong?** Front table jam, accumulator jam, doubles, envelope jam, failed to feed,
+   camera read fail, bad print, nozzle clog, low ink, or "something broke"
+3. **Fix it:** the quick fix in order, plus "keeps coming back?" with the real causes to check
+
+- **Repeat-jam alert:** the 3rd time the same jam hits the same machine in a day, the helper
+  says the quick fix isn't holding and shows the real causes first.
+- **Automatic timer:** starts when you open a jam, stops at **Fixed it**, so you see how long
+  jams really take and which was the longest today.
+- **Floor notes** on any fix. Notes and the day's log are saved on the phone.
+
+The fixes in [`frontend/src/floor/machineGuide.js`](frontend/src/floor/machineGuide.js) come
+from operators on the floor. It's a reminder tool, not a manual.
+
+> The OPC UA backend, Python simulator and assistant below are the earlier sensor-monitoring
+> prototype. The dashboard no longer uses them.
 
 ## Architecture
 
