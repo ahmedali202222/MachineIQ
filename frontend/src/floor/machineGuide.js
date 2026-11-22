@@ -71,7 +71,7 @@ export const JAM_GUIDE = {
       'Run one test piece slowly and watch the envelope open',
       'If it keeps happening, check fingers / belts for wear and call maintenance',
     ],
-    tip: 'Most common jam on this floor. Worst on 14" pages into #10 envelopes.',
+    tip: 'Just changed jobs? Re-check the front table guides first.',
   },
   'Accumulator jam': {
     where: 'Accumulator: where sheets stack up before folding.',
@@ -144,7 +144,7 @@ export const JAM_GUIDE = {
       'In AutoID Network Navigator, check the live view and re-run tuning for this job',
       'If glare: tilt the reader slightly off straight-on',
     ],
-    tip: 'Very common on this floor. Re-tuning after a job change usually helps.',
+    tip: 'If it keeps failing after a job change, re-run tuning for the new job.',
   },
   'Bad print / smear': {
     where: 'Inkjet print area.',

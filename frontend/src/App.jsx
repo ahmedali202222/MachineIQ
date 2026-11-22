@@ -8,12 +8,13 @@ import MachineCard from './components/MachineCard'
 import MachineDetail from './components/MachineDetail'
 import StatsPanel from './components/StatsPanel'
 import FloorView from './floor/FloorView'
+import HelperView from './floor/HelperView'
 import { lineSummary } from './health'
 
-const VIEWS = [['floor', 'Mail floor'], ['line', 'Line A sensors']]
-const viewFromHash = () => (window.location.hash === '#line' ? 'line' : 'floor')
+const VIEWS = [['floor', 'Mail floor'], ['help', 'Jam helper'], ['line', 'Line A sensors']]
+const viewFromHash = () => ({ '#line': 'line', '#help': 'help' })[window.location.hash] ?? 'floor'
 
-/** Two views: the 13-machine mail floor (default) and the OPC UA sensor view of Line A. */
+/** Three views: the 13-machine mail floor (default), the operator jam helper, and the OPC UA sensor view of Line A. */
 export default function App() {
   const [view, setView] = useState(viewFromHash)
   useEffect(() => {
@@ -31,6 +32,7 @@ export default function App() {
       ))}
     </div>
   )
+  if (view === 'help') return <HelperView switcher={switcher} />
   return view === 'floor' ? <FloorView switcher={switcher} /> : <LineView switcher={switcher} />
 }
 
