@@ -37,6 +37,8 @@ before they become a stopped line.
 
 ## Jam helper
 
+**Open it on your phone:** https://ahmedali202222.github.io/MachineIQ/
+
 A phone-first helper for operators on a mail floor running **FlowMaster** inserters (two of them
 fed by an inkjet that prints the envelopes, with a Keyence camera reading the barcode).
 
