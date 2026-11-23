@@ -104,15 +104,12 @@ export default function HistoryView({ realLog, sampleOn, setSampleOn, onBack, no
       <h2 className="helper-q">{machine ? `${machine} history` : 'History'}</h2>
 
       {sampleOn ? (
-        <p className="hsample">Sample data: made up to show how History works. Not your floor's real numbers. <button onClick={() => setSampleOn(false)}>Turn off</button></p>
-      ) : realLog.length === 0 ? (
-        <section className="helper-today">
-          <h3>No history yet</h3>
-          <p className="muted">Every time you tap "Fixed it", it shows up here. Want to see how it will look?</p>
-          <button className="hbtn" onClick={() => setSampleOn(true)}>Load 6 months of sample data</button>
-        </section>
+        <p className="hexample muted small">
+          Example history based on how this floor typically runs. Not logged jams.
+          {realLog.length > 0 && <> <button className="hlink" onClick={() => setSampleOn(false)}>Show my logged fixes</button></>}
+        </p>
       ) : (
-        <p className="muted small">Your real fixes, saved on this phone. <button className="hlink" onClick={() => setSampleOn(true)}>Show sample data instead</button></p>
+        <p className="muted small">Your logged fixes, saved on this phone. <button className="hlink" onClick={() => setSampleOn(true)}>Show example history</button></p>
       )}
 
       {log.length > 0 && (

@@ -117,7 +117,7 @@ export default function HelperView() {
         {showHistory && (
           <HistoryView
             realLog={data.log}
-            sampleOn={!!data.sampleOn}
+            sampleOn={data.sampleOn ?? data.log.length === 0}
             setSampleOn={(on) => update((d) => ({ ...d, sampleOn: on }))}
             onBack={home}
             now={now}

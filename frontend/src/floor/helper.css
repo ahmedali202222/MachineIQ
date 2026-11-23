@@ -124,3 +124,5 @@ details.helper-steps[open] > summary { margin-bottom: 8px; }
 .hlog-time { font-variant-numeric: tabular-nums; font-size: 0.85rem; white-space: nowrap; }
 .hlog-main { display: flex; flex-direction: column; gap: 2px; }
 .hlog-fix { color: #86efac; font-size: 0.9rem; }
+
+.hexample { margin-top: -6px; }
