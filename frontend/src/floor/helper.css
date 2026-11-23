@@ -96,3 +96,31 @@ details.helper-steps[open] > summary { margin-bottom: 8px; }
 .segmented { display: inline-flex; background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px; padding: 3px; }
 .segmented button { background: none; border: 0; border-radius: 8px; color: var(--muted); }
 .segmented button.active { background: var(--grid); color: var(--text); font-weight: 600; }
+
+/* Tap the step that fixed it */
+.pick button { all: unset; cursor: pointer; display: flex; flex-direction: column; gap: 2px; width: 100%; border-radius: 8px; padding: 2px 4px; margin: -2px -4px; }
+.pick button:focus-visible { outline: 2px solid var(--accent); }
+.pick.on button { background: rgba(34, 197, 94, 0.14); }
+.pick em { font-style: normal; color: #86efac; font-weight: 700; font-size: 0.85rem; }
+.pick-hint { text-align: center; }
+
+/* All-machines timeline */
+.htl { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 10px; display: flex; flex-direction: column; gap: 4px; }
+.htl-row { display: grid; grid-template-columns: 58px 1fr 40px; gap: 8px; align-items: center; background: none; border: 0; padding: 2px 0; text-align: left; border-radius: 6px; }
+.htl-row:hover { background: var(--panel-2); }
+.htl-name { font-weight: 700; font-size: 0.85rem; }
+.htl-cells { display: flex; gap: 2px; }
+.htl-cells span { flex: 1; height: 18px; border-radius: 3px; background: color-mix(in srgb, var(--red) calc(var(--a) * 100%), var(--grid)); }
+.htl-sum { color: var(--muted); font-size: 0.78rem; text-align: right; font-variant-numeric: tabular-nums; }
+.htl-axis { display: flex; justify-content: space-between; margin-top: 4px; padding-left: 66px; padding-right: 48px; }
+
+/* Jam log */
+.hchips { display: flex; flex-wrap: wrap; gap: 6px; }
+.hchips button { background: var(--panel); border: 1px solid var(--border); border-radius: 999px; padding: 6px 12px; font-size: 0.85rem; }
+.hchips button.active { border-color: var(--accent); color: var(--accent); }
+.hlog { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.hlog h4 { margin: 12px 0 4px; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+.hlog-row { display: grid; grid-template-columns: 76px 1fr; gap: 8px; padding: 8px 0; border-top: 1px solid var(--border); }
+.hlog-time { font-variant-numeric: tabular-nums; font-size: 0.85rem; white-space: nowrap; }
+.hlog-main { display: flex; flex-direction: column; gap: 2px; }
+.hlog-fix { color: #86efac; font-size: 0.9rem; }
