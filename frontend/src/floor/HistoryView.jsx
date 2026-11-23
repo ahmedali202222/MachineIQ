@@ -25,14 +25,14 @@ function Bars({ items, onPick, value = (i) => i.secs, label = (i) => `${hours(i.
 }
 
 /** One row per machine, one square per week; darker = more jams. Tap a row to open that machine. */
-function Timeline({ timeline, weeks, onPick }) {
+export function Timeline({ timeline, weeks, onPick, compact }) {
   // Scale from the quietest week to the busiest, so bad weeks stand out.
   const all = timeline.flatMap((t) => t.weeks)
   const max = Math.max(1, ...all)
   const min = Math.min(...all.filter((n) => n > 0), max)
   const shade = (n) => (n ? 0.1 + 0.9 * ((n - min) / Math.max(1, max - min)) ** 1.5 : 0)
   return (
-    <div className="htl">
+    <div className={`htl ${compact ? 'htl-compact' : ''}`}>
       {timeline.map((t) => (
         <button key={t.machine} className="htl-row" onClick={() => onPick(t.machine)}>
           <span className="htl-name">{t.machine}</span>
@@ -42,10 +42,10 @@ function Timeline({ timeline, weeks, onPick }) {
                 style={{ '--a': shade(n) }} />
             ))}
           </span>
-          <span className="htl-sum">{t.weeks.reduce((a, b) => a + b, 0)}</span>
+          {!compact && <span className="htl-sum">{t.weeks.reduce((a, b) => a + b, 0)}</span>}
         </button>
       ))}
-      <p className="muted small htl-axis"><span>{weeks[0].label}</span><span>darker = more jams</span><span>{weeks[weeks.length - 1].label}</span></p>
+      {!compact && <p className="muted small htl-axis"><span>{weeks[0].label}</span><span>darker = more jams</span><span>{weeks[weeks.length - 1].label}</span></p>}
     </div>
   )
 }
