@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
-import HistoryView from './HistoryView'
-import { BREAKDOWN_GUIDE, JAM_GUIDE, MACHINES, PROBLEMS, REPEAT_AT } from './machineGuide'
+import HistoryView, { Timeline } from './HistoryView'
+import { sampleLog, summarize } from './history'
+import { BREAKDOWN_GUIDE, JAM_GUIDE, MACHINES, PROBLEMS, REPEAT_AT, SHIFTS } from './machineGuide'
 import './helper.css'
 
 // Jam helper: 1) pick the machine  2) pick the problem  3) do the fix, tap "Fixed it".
@@ -21,6 +22,21 @@ const today = () => new Date().toDateString()
 const mmss = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
 const mins = (s) => (s < 60 ? `${s}s` : `${Math.round(s / 60)} min`)
 
+/** 6 months of every machine, week by week, ending today: example history or the real log. */
+// Cached: it only changes when the day, the data source, or the log changes.
+let snapCache = null
+function buildSnapshot(dayKey, exampleOn, realLog) {
+  if (snapCache && snapCache.dayKey === dayKey && snapCache.exampleOn === exampleOn && snapCache.realLog === realLog) return snapCache.value
+  const value = computeSnapshot(dayKey, exampleOn, realLog)
+  snapCache = { dayKey, exampleOn, realLog, value }
+  return value
+}
+function computeSnapshot(dayKey, exampleOn, realLog) {
+  const end = new Date(dayKey)
+  end.setHours(23, 59, 59, 999)
+  return summarize(exampleOn ? sampleLog(end) : realLog, 182, end.getTime())
+}
+
 /** A step the operator can tap to say "this is what fixed it". */
 function Pick({ value, picked, onPick, children }) {
   const on = picked === value
@@ -36,12 +52,19 @@ export default function HelperView() {
   const [problem, setProblem] = useState(null)
   const [startedAt, setStartedAt] = useState(null)
   const [now, setNow] = useState(() => Date.now())
+  const [clock, setClock] = useState(() => Date.now())
   const [data, setData] = useState(load)
   const [flash, setFlash] = useState(null)
   const [showHistory, setShowHistory] = useState(false)
   const [fixUsed, setFixUsed] = useState(null)
 
   // Tick once a second while a fix is open.
+  // The clock on the home screen.
+  useEffect(() => {
+    const t = setInterval(() => setClock(Date.now()), 10000)
+    return () => clearInterval(t)
+  }, [])
+
   useEffect(() => {
     if (!startedAt) return undefined
     const t = setInterval(() => setNow(Date.now()), 1000)
@@ -70,6 +93,18 @@ export default function HelperView() {
   const noteKey = `${machine?.type}|${problem}`
   const downSecs = todays.reduce((s, e) => s + (e.secs || 0), 0)
   const longest = todays.reduce((a, e) => (!a || (e.secs || 0) > a.secs ? e : a), null)
+
+  // Home dashboard: clock, shift, and a 6-month snapshot of every machine.
+  const clockDate = new Date(clock)
+  const hourNow = clockDate.getHours() + clockDate.getMinutes() / 60
+  const shiftNow = SHIFTS.find((sh) => hourNow >= sh.start && hourNow < sh.end)
+  const shiftLeft = shiftNow ? Math.round((shiftNow.end - hourNow) * 60) : null
+  const exampleOn = data.sampleOn ?? data.log.length === 0
+  const dayKey = clockDate.toDateString()
+  const realLog = data.log
+  const snapshot = buildSnapshot(dayKey, exampleOn, realLog)
+  const fmtClock = clockDate.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+  const fmtDay = clockDate.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })
 
   const top = () => window.scrollTo({ top: 0 })
   const home = () => { setMachineId(null); setProblem(null); setStartedAt(null); setShowHistory(false); setNow(Date.now()); top() }
@@ -117,7 +152,7 @@ export default function HelperView() {
         {showHistory && (
           <HistoryView
             realLog={data.log}
-            sampleOn={!!data.sampleOn}
+            sampleOn={data.sampleOn ?? data.log.length === 0}
             setSampleOn={(on) => update((d) => ({ ...d, sampleOn: on }))}
             onBack={home}
             now={now}
@@ -127,6 +162,23 @@ export default function HelperView() {
         {/* 1. Which machine */}
         {!machine && !showHistory && (
           <>
+            <section className="dash-hero">
+              <div>
+                <p className="dash-time">{fmtClock}</p>
+                <p className="dash-day">{fmtDay}</p>
+              </div>
+              <div className={`dash-shift ${shiftNow ? 'on' : ''}`}>
+                <strong>{shiftNow ? shiftNow.name : 'Off shift'}</strong>
+                <span>{shiftNow ? `${shiftLeft >= 60 ? `${Math.floor(shiftLeft / 60)}h ` : ''}${shiftLeft % 60}m left` : `Next: ${SHIFTS[0].name} at ${SHIFTS[0].start}:00`}</span>
+              </div>
+            </section>
+
+            <section className="dash-today">
+              <div><span>Fixed today</span><strong>{todays.length}</strong></div>
+              <div><span>Time down</span><strong>{downSecs ? mins(downSecs) : '0 min'}</strong></div>
+              <div><span>Longest</span><strong>{longest?.secs ? mmss(longest.secs) : '—'}</strong>{longest?.secs > 0 && <em>{longest.machine}</em>}</div>
+            </section>
+
             {repeats.length > 0 && (
               <section className="helper-alert">
                 <h3>Keeps coming back today</h3>
@@ -139,19 +191,27 @@ export default function HelperView() {
               </section>
             )}
 
+            {snapshot.total > 0 && snapshot.weeks.length > 1 && (
+              <section className="dash-tl">
+                <header>
+                  <div>
+                    <h3>Last 6 months · every machine</h3>
+                    <p className="muted small">{exampleOn ? 'Example history' : 'Your logged fixes'} · darker = more jams</p>
+                  </div>
+                  <button className="hlink" onClick={openHistory}>Open History →</button>
+                </header>
+                <Timeline timeline={snapshot.timeline} weeks={snapshot.weeks} onPick={openHistory} compact />
+                <p className="muted small dash-tl-axis"><span>{snapshot.weeks[0].label}</span><span>Today</span></p>
+              </section>
+            )}
+
             <h2 className="helper-q">Which machine?</h2>
             <h3 className="helper-sub">FlowMasters</h3>
             <div className="mgrid">{MACHINES.filter((m) => m.type === 'FlowMaster').map(tile)}</div>
             <h3 className="helper-sub">Inserter lines: inkjet → FlowMaster</h3>
             <div className="mgrid mgrid-lines">{MACHINES.filter((m) => m.type !== 'FlowMaster').map(tile)}</div>
 
-            {todays.length > 0 && (
-              <section className="helper-today">
-                <h3>Today: {todays.length} fixed · {mins(downSecs)} down</h3>
-                {longest?.secs > 0 && <p className="muted">Longest: {longest.machine} {longest.problem}, {mmss(longest.secs)}</p>}
-              </section>
-            )}
-            <button className="hbtn hbtn-wide" onClick={openHistory}>📊 History: which machines and jams cost the most time</button>
+
           </>
         )}
 

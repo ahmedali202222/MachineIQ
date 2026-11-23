@@ -19,6 +19,12 @@ export const MACHINES = [
   { id: 'INS-02', type: 'Inserter', note: 'Line 2 FlowMaster' },
 ]
 
+/** Shift hours (24h). Change to match the floor. */
+export const SHIFTS = [
+  { name: '1st shift', start: 6, end: 14 },
+  { name: '2nd shift', start: 14, end: 22 },
+]
+
 /** The problems an operator can pick for each kind of machine. */
 export const PROBLEMS = {
   FlowMaster: ['Front table jam', 'Accumulator jam', 'Doubles', 'Envelope jam', 'Failed to feed'],
