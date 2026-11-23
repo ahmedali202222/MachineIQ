@@ -21,6 +21,16 @@ const today = () => new Date().toDateString()
 const mmss = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
 const mins = (s) => (s < 60 ? `${s}s` : `${Math.round(s / 60)} min`)
 
+/** A step the operator can tap to say "this is what fixed it". */
+function Pick({ value, picked, onPick, children }) {
+  const on = picked === value
+  return (
+    <li className={`pick ${on ? 'on' : ''}`}>
+      <button onClick={() => onPick(on ? null : value)} aria-pressed={on}>{children}{on && <em>✓ fixed it</em>}</button>
+    </li>
+  )
+}
+
 export default function HelperView() {
   const [machineId, setMachineId] = useState(null)
   const [problem, setProblem] = useState(null)
@@ -29,6 +39,7 @@ export default function HelperView() {
   const [data, setData] = useState(load)
   const [flash, setFlash] = useState(null)
   const [showHistory, setShowHistory] = useState(false)
+  const [fixUsed, setFixUsed] = useState(null)
 
   // Tick once a second while a fix is open.
   useEffect(() => {
@@ -64,10 +75,10 @@ export default function HelperView() {
   const home = () => { setMachineId(null); setProblem(null); setStartedAt(null); setShowHistory(false); setNow(Date.now()); top() }
   const openHistory = () => { setNow(Date.now()); setShowHistory(true); top() }
   // The start time comes from the click event (ms since the epoch).
-  const openFix = (m, p, e) => { const t = Math.round(performance.timeOrigin + e.timeStamp); setMachineId(m); setProblem(p); setStartedAt(t); setNow(t); top() }
+  const openFix = (m, p, e) => { const t = Math.round(performance.timeOrigin + e.timeStamp); setMachineId(m); setProblem(p); setFixUsed(null); setStartedAt(t); setNow(t); top() }
   const fixed = () => {
     const secs = elapsed
-    update((d) => ({ ...d, log: [...d.log.slice(-1000), { day: today(), machine: machineId, type: machine.type, problem, secs, at: Date.now() }] }))
+    update((d) => ({ ...d, log: [...d.log.slice(-5000), { day: today(), machine: machineId, type: machine.type, problem, secs, fix: fixUsed, at: Date.now() }] }))
     setFlash(`${machineId} · ${problem} fixed in ${mmss(secs)}`)
     setTimeout(() => setFlash(null), 3000)
     home()
@@ -180,21 +191,21 @@ export default function HelperView() {
               <section className="helper-steps helper-repeat">
                 <h3>{ordinal(before + 1)} time today on {machine.id}. The quick fix isn't holding.</h3>
                 <p className="small">Check the real cause:</p>
-                <ol>{guide.repeat.map((r) => <li key={r.cause}><strong>{r.cause}</strong><span>{r.fix}</span></li>)}</ol>
+                <ol>{guide.repeat.map((r) => <Pick key={r.cause} value={r.fix} picked={fixUsed} onPick={setFixUsed}><strong>{r.cause}</strong><span>{r.fix}</span></Pick>)}</ol>
               </section>
             )}
 
             {guide && (
               <details className="helper-steps" open={!isRepeat}>
                 <summary><h3>Quick fix</h3></summary>
-                <ol>{guide.quick.map((c) => <li key={c}>{c}</li>)}</ol>
+                <ol>{guide.quick.map((c) => <Pick key={c} value={c} picked={fixUsed} onPick={setFixUsed}>{c}</Pick>)}</ol>
               </details>
             )}
 
             {guide && !isRepeat && (
               <details className="helper-why">
                 <summary>Keeps coming back? Check the real cause</summary>
-                <ol>{guide.repeat.map((r) => <li key={r.cause}><strong>{r.cause}</strong><span>{r.fix}</span></li>)}</ol>
+                <ol>{guide.repeat.map((r) => <Pick key={r.cause} value={r.fix} picked={fixUsed} onPick={setFixUsed}><strong>{r.cause}</strong><span>{r.fix}</span></Pick>)}</ol>
               </details>
             )}
 
@@ -216,6 +227,7 @@ export default function HelperView() {
               <span className="muted small">Saved on this phone only.</span>
             </label>
 
+            {guide && <p className="muted small pick-hint">{fixUsed ? `What fixed it: ${fixUsed}` : 'Tap the step that fixed it (optional)'}</p>}
             <button className="helper-done" onClick={fixed}>✓ Fixed it · {mmss(elapsed)}</button>
           </>
         )}

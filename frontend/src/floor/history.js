@@ -3,10 +3,10 @@
  * and the summaries the History screen shows.
  *
  * Sample data is generated on the fly from a fixed seed, so it costs no storage and looks the
- * same every time. It covers ~5 months of weekdays, 2 shifts, and is shaped like a real floor:
+ * same every time. It covers ~6 months of weekdays, 2 shifts, and is shaped like a real floor:
  * some machines worse than others, front table jams most common, a couple of bad envelope weeks.
  */
-import { MACHINES, PROBLEMS, REPEAT_AT } from './machineGuide'
+import { JAM_GUIDE, MACHINES, PROBLEMS, REPEAT_AT } from './machineGuide'
 
 const DAY = 86400000
 
@@ -31,8 +31,8 @@ const SECS = {
   'Nozzle clog': [180, 600], 'Low ink': [180, 420],
 }
 
-/** ~5 months of sample fixes ending yesterday: [{ day, at, machine, type, problem, secs, sample }]. */
-export function sampleLog(endDate = new Date(), days = 150) {
+/** ~6 months of sample fixes ending yesterday: [{ day, at, machine, type, problem, secs, fix, sample }]. */
+export function sampleLog(endDate = new Date(), days = 182) {
   const r = rng(20261122)
   const end = new Date(endDate); end.setHours(0, 0, 0, 0)
   // Each machine gets a "how rough it runs" factor; a few are clearly worse.
@@ -57,7 +57,12 @@ export function sampleLog(endDate = new Date(), days = 150) {
         const [lo, hi] = SECS[problem]
         const secs = Math.round(lo + (hi - lo) * r() * r())
         const at = date.getTime() + (6 + r() * 16) * 3600000 // between 6:00 and 22:00
-        out.push({ day: date.toDateString(), at, machine: m.id, type: m.type, problem, secs, sample: true })
+        // What fixed it: usually one of the quick steps (earlier steps more often), sometimes a root cause.
+        const g = JAM_GUIDE[problem]
+        const fix = r() < 0.8
+          ? g.quick[Math.min(g.quick.length - 1, Math.floor(r() * r() * g.quick.length))]
+          : g.repeat[Math.floor(r() * r() * g.repeat.length)].fix
+        out.push({ day: date.toDateString(), at, machine: m.id, type: m.type, problem, secs, fix, sample: true })
       }
     }
   }
@@ -88,7 +93,18 @@ export function summarize(log, days, now) {
   const repeats = Object.entries(repeatDays.reduce((a, r) => { const k = `${r.machine} · ${r.problem}`; a[k] = (a[k] || 0) + 1; return a }, {}))
     .map(([name, n]) => ({ name, n })).sort((a, b) => b.n - a.n)
 
+  // Jams per machine per week (oldest week first), for the all-machines timeline.
+  const timeline = MACHINES.map((m) => ({
+    machine: m.id,
+    weeks: weeks.map((_, i) => {
+      const start = now - (nWeeks - i) * 7 * DAY
+      const end = now - (nWeeks - i - 1) * 7 * DAY
+      return rows.filter((e) => e.machine === m.id && e.at > start && e.at <= end).length
+    }),
+  }))
+
   return {
+    timeline,
     total: rows.length,
     secs: rows.reduce((s, e) => s + (e.secs || 0), 0),
     byProblem: count((e) => e.problem),
