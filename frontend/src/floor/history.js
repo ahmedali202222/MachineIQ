@@ -46,6 +46,7 @@ export function sampleLog(endDate = new Date(), days = 182) {
     const dow = date.getDay()
     if (dow === 0 || dow === 6) continue
     const badEnv = badWeeks.some((w) => d <= w + 3 && d >= w - 3)
+    const seen = {} // jams per machine+problem so far today
     for (const m of MACHINES) {
       const n = Math.round((3 + r() * 5) * rough[m.id] * (badEnv ? 1.4 : 1))
       const probs = PROBLEMS[m.type]
@@ -57,11 +58,14 @@ export function sampleLog(endDate = new Date(), days = 182) {
         const [lo, hi] = SECS[problem]
         const secs = Math.round(lo + (hi - lo) * r() * r())
         const at = date.getTime() + (6 + r() * 16) * 3600000 // between 6:00 and 22:00
-        // What fixed it: usually one of the quick steps (earlier steps more often), sometimes a root cause.
+        // What fixed it: picked at random from every quick step and every real-cause fix for this jam.
+        // Jams that keep coming back on the same machine that day lean toward the real-cause fixes.
         const g = JAM_GUIDE[problem]
-        const fix = r() < 0.8
-          ? g.quick[Math.min(g.quick.length - 1, Math.floor(r() * r() * g.quick.length))]
-          : g.repeat[Math.floor(r() * r() * g.repeat.length)].fix
+        const key = `${m.id}|${problem}`
+        seen[key] = (seen[key] || 0) + 1
+        const useRepeat = r() < (seen[key] >= REPEAT_AT ? 0.6 : 0.3)
+        const pool = useRepeat ? g.repeat.map((x) => x.fix) : g.quick
+        const fix = pool[Math.floor(r() * pool.length)]
         out.push({ day: date.toDateString(), at, machine: m.id, type: m.type, problem, secs, fix, sample: true })
       }
     }
