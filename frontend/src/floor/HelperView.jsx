@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import HistoryView from './HistoryView'
 import { BREAKDOWN_GUIDE, JAM_GUIDE, MACHINES, PROBLEMS, REPEAT_AT } from './machineGuide'
 import './helper.css'
 
@@ -27,6 +28,7 @@ export default function HelperView() {
   const [now, setNow] = useState(() => Date.now())
   const [data, setData] = useState(load)
   const [flash, setFlash] = useState(null)
+  const [showHistory, setShowHistory] = useState(false)
 
   // Tick once a second while a fix is open.
   useEffect(() => {
@@ -59,7 +61,8 @@ export default function HelperView() {
   const longest = todays.reduce((a, e) => (!a || (e.secs || 0) > a.secs ? e : a), null)
 
   const top = () => window.scrollTo({ top: 0 })
-  const home = () => { setMachineId(null); setProblem(null); setStartedAt(null); setNow(Date.now()); top() }
+  const home = () => { setMachineId(null); setProblem(null); setStartedAt(null); setShowHistory(false); setNow(Date.now()); top() }
+  const openHistory = () => { setNow(Date.now()); setShowHistory(true); top() }
   // The start time comes from the click event (ms since the epoch).
   const openFix = (m, p, e) => { const t = Math.round(performance.timeOrigin + e.timeStamp); setMachineId(m); setProblem(p); setStartedAt(t); setNow(t); top() }
   const fixed = () => {
@@ -100,8 +103,18 @@ export default function HelperView() {
       <main className="helper-main">
         {flash && <p className="helper-flash" role="status">✓ {flash}</p>}
 
+        {showHistory && (
+          <HistoryView
+            realLog={data.log}
+            sampleOn={!!data.sampleOn}
+            setSampleOn={(on) => update((d) => ({ ...d, sampleOn: on }))}
+            onBack={home}
+            now={now}
+          />
+        )}
+
         {/* 1. Which machine */}
-        {!machine && (
+        {!machine && !showHistory && (
           <>
             {repeats.length > 0 && (
               <section className="helper-alert">
@@ -127,6 +140,7 @@ export default function HelperView() {
                 {longest?.secs > 0 && <p className="muted">Longest: {longest.machine} {longest.problem}, {mmss(longest.secs)}</p>}
               </section>
             )}
+            <button className="hbtn hbtn-wide" onClick={openHistory}>📊 History: which machines and jams cost the most time</button>
           </>
         )}
 

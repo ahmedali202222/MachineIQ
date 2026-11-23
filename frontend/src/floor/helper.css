@@ -63,3 +63,36 @@ details.helper-steps[open] > summary { margin-bottom: 8px; }
 .helper-repeat li span, .helper-why li span { color: var(--muted); font-size: 0.95rem; }
 .helper-why ol { margin: 10px 0 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; }
 @media (max-width: 420px) { .mgrid { grid-template-columns: repeat(3, 1fr); gap: 8px; } .mgrid.mgrid.mgrid-lines { grid-template-columns: 1fr 1fr; } .mbtn { padding: 14px 10px; } .mbtn strong { font-size: 1.15rem; } }
+
+/* History */
+.hbtn { background: var(--panel-2); border: 1px solid var(--accent); color: var(--accent); border-radius: 12px; padding: 14px 16px; font-weight: 600; font-size: 1rem; text-align: left; }
+.hbtn-wide { width: 100%; }
+.hlink { background: none; border: 0; color: var(--accent); padding: 0; text-decoration: underline; }
+.hsample { background: rgba(167, 139, 250, 0.12); border: 1px solid rgba(167, 139, 250, 0.5); color: #ddd6fe; border-radius: 12px; padding: 10px 12px; font-size: 0.9rem; }
+.hsample button { background: none; border: 0; color: #c4b5fd; text-decoration: underline; font-weight: 700; padding: 0 0 0 4px; }
+.hrange { align-self: flex-start; }
+.hrange button { padding: 8px 14px; font-size: 0.95rem; }
+.htotals { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.htotals div { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; }
+.htotals strong { font-size: 1.6rem; font-variant-numeric: tabular-nums; }
+.hfix { margin-top: 6px; }
+.hbars { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.hbars button { width: 100%; display: grid; grid-template-columns: 128px 1fr auto; gap: 10px; align-items: center; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; text-align: left; }
+.hbars button:disabled { cursor: default; opacity: 1; }
+.hbars button:not(:disabled):hover { border-color: var(--accent); }
+.hb-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hb-track { height: 8px; background: var(--grid); border-radius: 4px; overflow: hidden; }
+.hb-track span { display: block; height: 100%; background: var(--amber); border-radius: 4px; }
+.hb-val { color: var(--muted); font-size: 0.82rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.hweeks { display: flex; align-items: flex-end; gap: 3px; height: 110px; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 10px; }
+.hweeks div { flex: 1; height: 100%; display: flex; align-items: flex-end; }
+.hw-bar { display: block; width: 100%; background: var(--accent); border-radius: 3px 3px 0 0; min-height: 2px; }
+.hweeks-axis { display: flex; justify-content: space-between; margin-top: -8px; }
+@media (max-width: 520px) {
+  .hbars button { grid-template-columns: 1fr auto; row-gap: 6px; }
+  .hb-name { grid-column: 1 / -1; white-space: normal; }
+}
+
+.segmented { display: inline-flex; background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px; padding: 3px; }
+.segmented button { background: none; border: 0; border-radius: 8px; color: var(--muted); }
+.segmented button.active { background: var(--grid); color: var(--text); font-weight: 600; }
